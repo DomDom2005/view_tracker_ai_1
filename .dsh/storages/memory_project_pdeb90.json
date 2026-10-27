@@ -1,0 +1,79 @@
+{
+  "unit": {
+    "name": "memory_project_pdeb90",
+    "version": 1
+  },
+  "global": null,
+  "tables": {
+    "blocks": {
+      "4c29c077-1ee0-4804-b911-ed386df43e1b": {
+        "namespace": "project",
+        "status": "approved",
+        "injected": true,
+        "quarantined": false,
+        "source": "agent",
+        "injectedAuto": false,
+        "content": "Projekt view_tracker_ai_1: kod, komentarze w kodzie i commity po angielsku (Conventional Commits); README, komunikaty CLI, raporty i komentarze AI po polsku. Źródło: `Project info/SPEC.md` §0. Nazwa kanoniczna `view_tracker_ai_1` także dla pakietu Pythona i komendy CLI (decyzja właściciela 2026-10-27, repo GitHub ma tę nazwę).",
+        "keywords": [
+          "język",
+          "language",
+          "polski",
+          "angielski",
+          "commity",
+          "conventional commits",
+          "readme",
+          "view_tracker_ai_1",
+          "nazwa",
+          "cli"
+        ],
+        "createdAt": 1793141312785,
+        "updatedAt": 1793141948891
+      },
+      "9588286d-a2d1-4917-97eb-7a64fa81453d": {
+        "namespace": "project",
+        "status": "approved",
+        "injected": false,
+        "quarantined": false,
+        "source": "agent",
+        "content": "Mapa dokumentacji projektu: `Project info/SPEC.md` = co zbudować, `Project info/PLAN.md` = etapy 0–11 z bramkami (ruff+pytest+pokrycie), `Project info/AGENTS.md` = zasady i pułapki, `docs/api-notes.md` = fakty o Allegro API zweryfikowane 2026-10-27 (scope'y, device flow, limit 1..1000 domyślnie 20, User-Agent obowiązkowy, `sellingMode.price`, 200/202, TODO(verify)), `docs/ai-journal.md` = wpisy + odstępstwa od SPEC. Hierarchia: developer.allegro.pl > SPEC > PLAN. Nazwa kanoniczna: `view_tracker_ai_1` (pakiet Pythona i komenda też). Dokumenty projektu zostają w `Project info/`, kod w rootcie. Repo: github.com/DomDom2005/view_tracker_ai_1 (main).",
+        "keywords": [
+          "spec",
+          "plan",
+          "agents",
+          "api-notes",
+          "dokumentacja",
+          "etapy",
+          "bramka",
+          "view_tracker_ai_1",
+          "nazwa",
+          "repo",
+          "ai-journal",
+          "kolejność"
+        ],
+        "createdAt": 1793141312793,
+        "updatedAt": 1793141940936
+      },
+      "95bff0d3-eeeb-4599-a0b7-1a34ad353829": {
+        "namespace": "project",
+        "status": "approved",
+        "injected": false,
+        "quarantined": false,
+        "source": "agent",
+        "content": "Sekrety Allegro: plik `Project info/Secrets.md` z CLIENT ID/SECRET został usunięty przez właściciela 2026-10-27 i nigdy nie trafił do gita (zdalne repo miało tylko README). `.gitignore` nadal blokuje tę ścieżkę oraz `.env`, `tokens*.json`. Zasada bez zmian: klucze tylko w `.env` poza repo, żadnych wartości w logach, testach, przykładach ani czacie.",
+        "keywords": [
+          "sekrety",
+          "secrets",
+          "client secret",
+          ".env",
+          ".gitignore",
+          "rotacja",
+          "wyciek",
+          "tokens",
+          "allegro"
+        ],
+        "createdAt": 1793141312802,
+        "updatedAt": 1793141948899
+      }
+    }
+  }
+}
