@@ -1,0 +1,18 @@
+{
+  "offers": [
+    {
+      "id": "61001001003",
+      "name": "Prostownica turmalinowa",
+      "stats": { "watchersCount": 7, "visitsCount": 210 },
+      "publication": { "status": "ACTIVE" }
+    },
+    {
+      "id": "61001001004",
+      "name": "Szczotka do włosów ion",
+      "stats": { "watchersCount": 0, "visitsCount": 4 },
+      "publication": { "status": "ACTIVE" }
+    }
+  ],
+  "count": 2,
+  "totalCount": 5
+}

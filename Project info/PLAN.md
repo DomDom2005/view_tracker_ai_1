@@ -21,7 +21,7 @@
 | 0    | Szkielet repo i weryfikacja dokumentacji       | M       | 1         | [x]    |
 | 1    | Fundament: config, błędy, modele, storage      | M       | 1         | [x]    |
 | 2    | Autoryzacja OAuth                              | L       | 1         | [x]    |
-| 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [ ]    |
+| 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [x]    |
 | 4    | Kolektor i podstawowe CLI                      | M       | 1         | [ ]    |
 | 5    | Analityka                                      | L       | 2         | [ ]    |
 | 6    | Dane demo i wykresy                            | M       | 2         | [ ]    |
@@ -137,12 +137,12 @@ ruff check . && pytest -q tests/test_auth.py --cov=src/view_tracker_ai_1
 **Zależy od:** 1, 2 · **Czyta:** SPEC §4.1, §9; `docs/api-notes.md`
 
 **Zadania**
-- [ ] `client.py`: sesja `requests`, nagłówki `Accept: application/vnd.allegro.public.v1+json` i **obowiązkowy `User-Agent`** (SPEC §4.1), token z `auth`, adres bazowy zależny od `ALLEGRO_ENV` (z `docs/api-notes.md`), timeouty (connect 10 s, read 30 s).
-- [ ] Polityka błędów z tabeli SPEC §9: `401` (odśwież i **powtórz raz**), `422` (`ValidationError`, bez ponowień), `429` (`Retry-After` albo backoff wykładniczy z jitterem, maks. 5 prób), `5xx`/timeout (do 3 ponowień), inne `4xx` → `ApiError`.
-- [ ] `iter_offers(statuses, limit)` z paginacją i krótką pauzą między stronami. `limit` zgodny z dokumentacją.
-- [ ] Fixtures w `tests/fixtures/` (`offers_page1.json` … `offers_page3.json`, dane fikcyjne, kształt z SPEC §7).
-- [ ] Testy z SPEC §12 dla `client`: paginacja na 3 stronach, nagłówek `Accept`, `429` z `Retry-After`, `429` do wyczerpania, `422`, `5xx`, timeout. Uśpienia w testach zastąp zegarem testowym (żadnych prawdziwych `sleep`).
-- [ ] Żaden log i żaden komunikat błędu nie zawiera nagłówka `Authorization`.
+- [x] `client.py`: sesja `requests`, nagłówki `Accept: application/vnd.allegro.public.v1+json` i **obowiązkowy `User-Agent`** (SPEC §4.1), token z `auth`, adres bazowy zależny od `ALLEGRO_ENV` (z `docs/api-notes.md`), timeouty (connect 10 s, read 30 s).
+- [x] Polityka błędów z tabeli SPEC §9: `401` (odśwież i **powtórz raz**), `422` (`ValidationError`, bez ponowień), `429` (`Retry-After` albo backoff wykładniczy z jitterem, maks. 5 prób), `5xx`/timeout (do 3 ponowień), inne `4xx` → `ApiError`. Odstępstwo: bez `Retry-After` backoff startuje od **60 s** (blokada po `429` trwa ~minutę), nie od 1 s.
+- [x] `iter_offers(statuses, limit)` z paginacją i krótką pauzą między stronami (0,2 s). `limit` jawny: domyślnie 100, walidacja 1..1000 (API ma domyślnie 20!).
+- [x] Fixtures w `tests/fixtures/` (`offers_page1.json` … `offers_page3.json`, dane fikcyjne, kształt z SPEC §7).
+- [x] Testy z SPEC §12 dla `client`: paginacja na 3 stronach, nagłówki `Accept`/`User-Agent`, `429` z `Retry-After`, `429` bez nagłówka, `429` do wyczerpania, `422`, `5xx`, timeout, `401` → odświeżenie i jeden retry. Uśpienia podstawione listą — zero prawdziwych `sleep`.
+- [x] Żaden log i żaden komunikat błędu nie zawiera nagłówka `Authorization` (test na `caplog`).
 
 **Bramka**
 ```bash

@@ -281,7 +281,7 @@ Globalne opcje: `--env {sandbox,prod}` (domyślnie z `ALLEGRO_ENV`), `--db PATH`
 |---|---|
 |`401`|Odśwież token raz i **powtórz żądanie raz**. Jeśli odświeżenie się nie uda lub drugie żądanie też da `401` → `AuthError` z komunikatem „zaloguj się ponownie: `auth login`”. Nie wchodź w pętlę.|
 |`422`|`ValidationError` z listą `errors` z odpowiedzi (kod, komunikat, ścieżka pola). **Bez ponowień.** CLI pokazuje błędy czytelnie. Realne głównie przy `PATCH` (faza 3), przy odczycie rzadkie (błędne parametry).|
-|`429`|Respektuj `Retry-After`, jeśli jest. W przeciwnym razie backoff wykładniczy z jitterem (1s, 2s, 4s… maks. 5 prób). Po wyczerpaniu → `RateLimitError`. Loguj liczbę ponowień.|
+|`429`|Respektuj `Retry-After`, jeśli jest (sekundy albo data HTTP). W przeciwnym razie backoff wykładniczy z jitterem startujący od **~60 s** (blokada po `429` trwa około minuty — `docs/api-notes.md` §5; start od 1 s tylko spalałby próby), maks. 5 prób. Po wyczerpaniu → `RateLimitError`. Loguj liczbę ponowień.|
 |`5xx`|Do 3 ponowień z backoffem, potem `ApiError`.|
 |timeout/sieć|Timeouty: connect 10 s, read 30 s. Do 3 ponowień, potem `ApiError`.|
 |inne `4xx`|`ApiError` z kodem i skróconym ciałem odpowiedzi (bez nagłówków).|

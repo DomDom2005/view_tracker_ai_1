@@ -1,0 +1,18 @@
+{
+  "offers": [
+    {
+      "id": "61001001001",
+      "name": "Suszarka do włosów A180 dyfuzor",
+      "stats": { "watchersCount": 3, "visitsCount": 54 },
+      "publication": { "status": "ACTIVE" }
+    },
+    {
+      "id": "61001001002",
+      "name": "Lokówka ceramiczna 25 mm",
+      "stats": { "watchersCount": 1, "visitsCount": 12 },
+      "publication": { "status": "ACTIVE" }
+    }
+  ],
+  "count": 2,
+  "totalCount": 5
+}
