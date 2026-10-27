@@ -11,14 +11,15 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-27 | Weryfikacja 6 punktów `SPEC.md` §4.3 w dokumentacji Allegro | Research w developer.allegro.pl (3 niezależne wątki: OAuth, lista ofert, zmiana ceny), wynik w `docs/api-notes.md` | Każdy punkt z URL-em źródła i datą; rzeczy niepotwierdzone oznaczone `NIEZWERYFIKOWANE` | trafne po korektach — 3 ustalenia zmieniły SPEC (patrz „Odstępstwa od SPEC”) |
 | 2026-10-27 | Etap 0 — szkielet repo, środowisko, bramka | Struktura `src/view_tracker_ai_1/` + `scripts/` + `tests/` + `docs/`; `pyproject.toml` (src layout, pytest, ruff), przypięte `requirements*.txt`, `.env.example` bez wartości, `tests/conftest.py` z blokadą gniazd, smoke test, root `AGENTS.md` + `CLAUDE.md`, `docs/data-flow.md`, `docs/manual-sandbox-checklist.md`, `docs/screenshots/README.md` | `ruff check .` → All checks passed; `pytest -q` → 15 passed; `python -m view_tracker_ai_1.cli --version` → `view_tracker_ai_1 0.0.1` (z `PYTHONPATH=src`) | trafne, z zastrzeżeniami środowiskowymi (patrz „Notatki z etapu 0”) |
 | 2026-10-28 | Etap 1 — config, errors, models, storage | `Config` jako frozen dataclass z `from_env`, walidacją (`ALLEGRO_ENV`, `LLM_PROVIDER`, `LOG_LEVEL`, `ALLOW_PROD_WRITES`), hostami per środowisko i metodami `require_allegro_credentials()`/`require_write_permission()`; `setup_logging()` + `redact()` maskujące Bearer/JWT/`sk-ant-…`/`client_secret`; `AppError` i 5 typów błędów; modele `Offer`/`Snapshot`/`Series`/`SeriesSummary` (+`SeriesPoint`, `DailyGain`, `Anomaly`); `storage.py` ze schematem z SPEC §7, idempotentnym `init_db`, `upsert_offer`, `insert_snapshots`, `get_series`, `list_offers`, `get_last_snapshot`, cache AI, `log_action` | 75 testów; pokrycie: `config.py` 99%, `storage.py` 96%, `errors.py` i `models.py` 100%; `ruff check .` czysty | trafne po dwóch korektach (patrz „Notatki z etapu 1”) |
+| 2026-10-28 | Etap 2 — OAuth device flow i magazyn tokenów | `DeviceFlowAuth` (start → polling → tokeny, `slow_down`, `access_denied`, wygaśnięcie kodu), `TokenStore` (katalog 700, plik 600, zapis przez `mkstemp` + `os.replace`), rotacja refresh tokena (nowy zapisywany od razu, stary zachowany, gdy serwer go nie odeśle), `get_valid_token()` z buforem 5 min, `status()` bez ujawniania tokenów; `Tokens`/`DeviceAuthorization` z `repr=False` na sekretach | 101 testów (1 skip na Windows); pokrycie `auth.py` 92%; `ruff check .` czysty; wszystkie żądania przez `responses` | trafne po korektach (patrz „Notatki z etapu 2”) |
 
 ## Notatki z etapu 0 (środowisko)
 
 - Python w PATH nie istnieje (Windows alias), użyty `C:\Users\domin\AppData\Local\Python\pythoncore-3.14-64\python.exe` (3.14.6).
-- `python -m venv` nie potrafił doinstalować `pip` — sandboxowy filtr plików blokuje zapis do katalogów tworzonych przez `tempfile.mkdtemp`. `pip` w venv doinstalowany przez `uv`; zależności instalowane `uv pip install`.
-- `pip install -r requirements-dev.txt` przechodzi (wszystko „already satisfied”), ale kończy się kodem 1, bo pip nie może posprzątać swoich katalogów tymczasowych w sandboxie. Na zwykłej maszynie problem nie występuje.
+- `python -m venv` nie potrafił doinstalować `pip` — sandboxowy filtr plików blokował zapis do katalogów tworzonych przez `tempfile.mkdtemp`. `pip` w venv doinstalowany przez `uv`; zależności instalowane `uv pip install`.
+- `pip install -r requirements-dev.txt` przechodzi (wszystko „already satisfied”), ale kończył się kodem 1, bo pip nie mógł posprzątać swoich katalogów tymczasowych w sandboxie. Na zwykłej maszynie problem nie występuje.
 - `pip install -e .` **nie dało się zweryfikować** w sandboxie (build wheel używa katalogów tymczasowych). Do sprawdzenia przez człowieka: `pip install -e .` i `view_tracker_ai_1 --version`.
-- `pytest` ostrzega `PytestCacheWarning` — ten sam problem z katalogami tymczasowymi sandboxa, nie błąd projektu.
+- Fixture `tmp_path` nie działał w trybie `workspace-write` (katalogi z prawami 0700 stają się niedostępne). Przy pełnym dostępie do plików problem znika i testy idą standardową bramką, bez obejść.
 
 ## Notatki z etapu 1 (decyzje i korekty)
 
@@ -31,7 +32,16 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 
 **Korekty w trakcie etapu:** (1) pierwsza wersja `from_env` wywalała się na `None.lower()` przy braku zmiennej — poprawione i pokryte testem; (2) `schema_version()` na pustej bazie rzucał `OperationalError` — teraz zwraca `None`.
 
-**Uwaga o środowisku:** fixture `tmp_path` nie działa w tym sandboksie (katalogi z prawami 0700 stają się niedostępne), więc lokalne uruchomienia szły z tymczasowym pluginem `.tmp/local_tmp_plugin.py`; testy w repo używają standardowego `tmp_path` i przechodzą na normalnej maszynie.
+## Notatki z etapu 2 (decyzje i korekty)
+
+**Decyzje projektowe:**
+
+- **Rotacja refresh tokena:** po każdym odświeżeniu zapisujemy od razu nowy token (stary żyje 60 s), a gdy serwer nie odeśle `refresh_token`, zachowujemy poprzedni — inaczej jedno „puste” odświeżenie wylogowałoby użytkownika.
+- **`get_valid_token()` odświeża z buforem 5 min**, żeby token nie wygasł w trakcie żądania; `status()` nigdy nie oddaje wartości tokenów, tylko datę i `expired`.
+- **`repr=False`** na `access_token`, `refresh_token` i `device_code` — obiekt może trafić do loga debug bez wycieku.
+- **Polling:** `slow_down` zwiększa interwał o 5 s (zgodnie z dokumentacją), `access_denied` i nieznany kod kończą się `AuthError`, wygaśnięcie kodu liczymy od `expires_in`.
+
+**Korekty w trakcie etapu:** (1) pierwsza wersja testów wywoływała `login()` bez zamockowanego `/device` — poprawione przez rozdzielenie testu end-to-end od testów samego `poll()`; (2) bramka w PLAN miała `--cov=src/view_tracker_ai_1/auth`, co nie działa przy `src` layout — zmienione na `--cov=src/view_tracker_ai_1`; (3) `--cov` na ścieżce pliku dawało „no data collected”, więc bramki etapów liczą pokrycie całego pakietu i patrzą na wiersz modułu.
 
 ## Odstępstwa od SPEC
 

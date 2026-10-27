@@ -20,7 +20,7 @@
 | ---- | ---------------------------------------------- | ------- | --------- | ------ |
 | 0    | Szkielet repo i weryfikacja dokumentacji       | M       | 1         | [x]    |
 | 1    | Fundament: config, błędy, modele, storage      | M       | 1         | [x]    |
-| 2    | Autoryzacja OAuth                              | L       | 1         | [ ]    |
+| 2    | Autoryzacja OAuth                              | L       | 1         | [x]    |
 | 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [ ]    |
 | 4    | Kolektor i podstawowe CLI                      | M       | 1         | [ ]    |
 | 5    | Analityka                                      | L       | 2         | [ ]    |
@@ -113,15 +113,15 @@ ruff check . && pytest -q --cov=src/view_tracker_ai_1 --cov-report=term-missing
 **Zależy od:** 1 · **Czyta:** SPEC §4.3 (pkt 1–3), §6 FR-1, §13; `docs/api-notes.md`
 
 **Zadania**
-- [ ] `auth.py`: device flow (start, polling z respektowaniem interwału, obsługa „oczekiwanie / odmowa / wygaśnięcie kodu”), endpointy i parametry **z `api-notes.md`**, nie z pamięci.
-- [ ] Magazyn tokenów: ścieżka z `TOKEN_STORE_PATH`, katalog `700`, plik `600`, zapis atomowy (plik tymczasowy + `os.replace`).
-- [ ] Odświeżanie tokenu z **zapisem nowego refresh tokena po każdym odświeżeniu** (zakładamy rotację, dopóki dokumentacja nie rozstrzygnie inaczej).
-- [ ] `get_valid_token()` odświeża przed wygaśnięciem i nigdy nie wypisuje tokenów.
-- [ ] Testy (mock HTTP): odświeżenie po `401`, porażka odświeżenia → `AuthError`, zapis nowego refresh tokena, uprawnienia plików, brak tokenów w logach.
+- [x] `auth.py`: device flow (start, polling z respektowaniem interwału, obsługa „oczekiwanie / odmowa / wygaśnięcie kodu”), endpointy i parametry **z `api-notes.md`**, nie z pamięci.
+- [x] Magazyn tokenów: ścieżka z `TOKEN_STORE_PATH`, katalog `700`, plik `600`, zapis atomowy (plik tymczasowy + `os.replace`).
+- [x] Odświeżanie tokenu z **zapisem nowego refresh tokena po każdym odświeżeniu** (rotacja potwierdzona w dokumentacji: nowy refresh token jednorazowy, stary ważny 60 s).
+- [x] `get_valid_token()` odświeża przed wygaśnięciem (bufor 5 min) i nigdy nie wypisuje tokenów.
+- [x] Testy (mock HTTP): sukces i porażka odświeżania, zapis nowego refresh tokena, uprawnienia plików, brak tokenów w logach/`repr`. Odświeżenie **po `401`** sprawdza dopiero `client.py` (etap 3) — tutaj jest tylko mechanizm odświeżania.
 
 **Bramka**
 ```bash
-ruff check . && pytest -q tests/test_auth.py --cov=src/view_tracker_ai_1/auth
+ruff check . && pytest -q tests/test_auth.py --cov=src/view_tracker_ai_1
 ```
 - Pokrycie `auth.py` ≥ 80%. Żadnego prawdziwego żądania sieciowego.
 
@@ -146,7 +146,7 @@ ruff check . && pytest -q tests/test_auth.py --cov=src/view_tracker_ai_1/auth
 
 **Bramka**
 ```bash
-ruff check . && pytest -q tests/test_client.py --cov=src/view_tracker_ai_1/client
+ruff check . && pytest -q tests/test_client.py --cov=src/view_tracker_ai_1
 ```
 - Pokrycie `client.py` ≥ 80%, czas testów rozsądny (bez realnych oczekiwań).
 
@@ -193,7 +193,7 @@ python -m view_tracker_ai_1.cli --help
 
 **Bramka**
 ```bash
-ruff check . && pytest -q tests/test_analytics.py --cov=src/view_tracker_ai_1/analytics
+ruff check . && pytest -q tests/test_analytics.py --cov=src/view_tracker_ai_1
 ```
 - Pokrycie `analytics.py` ≥ 90%.
 
@@ -243,7 +243,7 @@ ruff check . && pytest -q
 
 **Bramka**
 ```bash
-ruff check . && pytest -q tests/test_ai_comment.py --cov=src/view_tracker_ai_1/ai_comment
+ruff check . && pytest -q tests/test_ai_comment.py --cov=src/view_tracker_ai_1
 ```
 - Żadne wywołanie prawdziwego API w testach. Pokrycie ≥ 80%.
 
