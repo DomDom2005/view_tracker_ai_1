@@ -1,0 +1,38 @@
+# --- sekrety (SPEC §13) ---
+.env
+.env.*
+!.env.example
+tokens.json
+tokens*.json
+*.pem
+*.key
+# plik z poświadczeniami przekazany tymczasowo przez właściciela repo
+Project info/Secrets.md
+
+# --- dane i wyniki (SPEC §13) ---
+data/
+reports/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- edytory / OS ---
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
