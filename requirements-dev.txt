@@ -1,0 +1,9 @@
+# Dev dependencies — wersje przypięte i przetestowane.
+# Instalacja: pip install -r requirements-dev.txt (dociąga też requirements.txt)
+-r requirements.txt
+
+freezegun==1.5.5
+pytest==9.2.0
+pytest-cov==7.1.0
+responses==0.26.3
+ruff==0.17.3

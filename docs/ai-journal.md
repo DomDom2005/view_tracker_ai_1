@@ -6,7 +6,15 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 |Data|Zadanie|Co zaproponowało/zrobiło AI|Jak zweryfikowano|Wynik (trafne / poprawione / błędne)|
 |---|---|---|---|---|
 | 2026-10-27 | Uporządkowanie dokumentów projektu (nazwy, ścieżki, bloki kodu) | Ujednolicenie nazwy na `view_tracker_ai_1` w `SPEC.md`, `PLAN.md`, `AGENTS.md`, `Allegro API - Prototyp.md`; poprawa bloków kodu w `AGENTS.md` (niewidzialny znak U+200B w fence); nota o pierwszeństwie dokumentacji Allegro w nocie koncepcyjnej | Porównanie z nazwą repo (`git ls-tree origin/main`), `grep` po `Project info/` | poprawione (dokumenty mówiły „Allegro Trends” / `allegro_trends`) |
-| 2026-10-27 | Weryfikacja 6 punktów `SPEC.md` §4.3 w dokumentacji Allegro | Research w developer.allegro.pl (3 niezależne wątki: OAuth, lista ofert, zmiana ceny), wynik w `docs/api-notes.md` | Każdy punkt z URL-em źródła i datą; rzeczy niepotwierdzone oznaczone `NIEZWERYFIKOWANE` | trafne po korektach — 4 ustalenia zmieniły SPEC (patrz niżej) |
+| 2026-10-27 | Etap 0 — szkielet repo, środowisko, bramka | Struktura `src/view_tracker_ai_1/` + `scripts/` + `tests/` + `docs/`; `pyproject.toml` (src layout, pytest, ruff), przypięte `requirements*.txt`, `.env.example` bez wartości, `tests/conftest.py` z blokadą gniazd, smoke test (15 testów), root `AGENTS.md` + `CLAUDE.md`, `docs/data-flow.md`, `docs/manual-sandbox-checklist.md`, `docs/screenshots/README.md` | `ruff check .` → All checks passed; `pytest -q` → 15 passed; `python -m view_tracker_ai_1.cli --version` → `view_tracker_ai_1 0.0.1` (z `PYTHONPATH=src`) | trafne, z zastrzeżeniami środowiskowymi (poniżej) |
+
+## Uwagi o środowisku (etap 0)
+
+- Python w PATH nie istnieje (Windows alias), użyty `C:\Users\domin\AppData\Local\Python\pythoncore-3.14-64\python.exe` (3.14.6).
+- `python -m venv` nie potrafił doinstalować `pip` — sandboxowy filtr plików blokuje zapis do katalogów tworzonych przez `tempfile.mkdtemp`. `pip` w venv doinstalowany przez `uv`; zależności instalowane `uv pip install`.
+- `pip install -r requirements-dev.txt` przechodzi (wszystko „already satisfied”), ale kończy się kodem 1, bo pip nie może posprzątać swoich katalogów tymczasowych w sandboxie. Na zwykłej maszynie problem nie występuje.
+- `pip install -e .` **nie dało się zweryfikować** w sandboxie (build wheel używa katalogów tymczasowych). Do sprawdzenia przez człowieka: `pip install -e .` i `view_tracker_ai_1 --version`.
+- `pytest` ostrzega `PytestCacheWarning` — to ten sam problem z katalogami tymczasowymi sandboxa, nie błąd projektu.
 
 ## Odstępstwa od SPEC
 

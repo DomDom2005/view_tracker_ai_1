@@ -18,7 +18,7 @@
 
 | Etap | Nazwa                                          | Rozmiar | Faza SPEC | Status |
 | ---- | ---------------------------------------------- | ------- | --------- | ------ |
-| 0    | Szkielet repo i weryfikacja dokumentacji       | M       | 1         | [ ]    |
+| 0    | Szkielet repo i weryfikacja dokumentacji       | M       | 1         | [x]    |
 | 1    | Fundament: config, błędy, modele, storage      | M       | 1         | [ ]    |
 | 2    | Autoryzacja OAuth                              | L       | 1         | [ ]    |
 | 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [ ]    |
@@ -60,12 +60,12 @@ Zależności: 0 → 1 → (2, 3) → 4 → 5 → 6 → (7, 8) → 9 → 10 → 1
 **Zależy od:** — · **Czyta:** SPEC §0, §4, §5, §13
 
 **Zadania**
-- [ ] `git init`, struktura katalogów wg SPEC §5 (pliki puste lub z minimalną treścią).
-- [ ] `pyproject.toml` (layout `src/`, konfiguracja `pytest` i `ruff`), `.gitignore` (SPEC §13), `.env.example` (same nazwy zmiennych z SPEC §13, bez wartości).
-- [ ] Środowisko wirtualne, instalacja zależności, **przypięcie przetestowanych wersji** w `requirements.txt` i `requirements-dev.txt`. Dodaj `tzdata` (strefa `Europe/Warsaw` na Windows).
-- [ ] `tests/conftest.py` z blokadą połączeń sieciowych (test próbujący otworzyć gniazdo ma zawieść).
-- [ ] `Project info/AGENTS.md` już istnieje — nie przenoś go do roota (dokumenty projektu zostają w `Project info/`). Jeśli okaże się, że reguły nie są widoczne poza tym katalogiem, dodaj w rootcie cienki `AGENTS.md` wskazujący na `Project info/AGENTS.md` oraz `CLAUDE.md` z jedną linią `@AGENTS.md`.
-- [ ] `docs/ai-journal.md` ze szkieletem (tabela wpisów, sekcje „Odstępstwa od SPEC” i „Refleksja”).
+- [x] `git init`, struktura katalogów wg SPEC §5 (pliki puste lub z minimalną treścią).
+- [x] `pyproject.toml` (layout `src/`, konfiguracja `pytest` i `ruff`), `.gitignore` (SPEC §13), `.env.example` (same nazwy zmiennych z SPEC §13, bez wartości).
+- [x] Środowisko wirtualne, instalacja zależności, **przypięcie przetestowanych wersji** w `requirements.txt` i `requirements-dev.txt`. Dodaj `tzdata` (strefa `Europe/Warsaw` na Windows). Wersje z Pythonem 3.14.6: `anthropic 2.3.0`, `matplotlib 3.11.2`, `jinja2 3.1.6`, `requests 2.34.2`, `pytest 9.2.0`, `ruff 0.17.3`.
+- [x] `tests/conftest.py` z blokadą połączeń sieciowych (test próbujący otworzyć gniazdo ma zawieść).
+- [x] `Project info/AGENTS.md` już istnieje — nie przenoszony do roota (dokumenty projektu zostają w `Project info/`). W rootcie dodany cienki `AGENTS.md` wskazujący na `Project info/AGENTS.md` (bez niego reguły nie działają poza tym katalogiem) oraz `CLAUDE.md` z jedną linią `@AGENTS.md`.
+- [x] `docs/ai-journal.md` ze szkieletem (tabela wpisów, sekcje „Odstępstwa od SPEC” i „Refleksja”).
 - [x] **Weryfikacja SPEC §4.3** (6 punktów) w oficjalnej dokumentacji — wykonane 2026-10-27. Wynik w `docs/api-notes.md` (punkt → ustalenie → URL źródła → data sprawdzenia). Punkty niepotwierdzone oznaczone `NIEZWERYFIKOWANE` + `TODO(verify)`; lista w `docs/api-notes.md` §8. Uwaga: weryfikacja ujawniła nowy wymóg — obowiązkowy nagłówek `User-Agent` (SPEC §4.1, §13).
 
 **Bramka**

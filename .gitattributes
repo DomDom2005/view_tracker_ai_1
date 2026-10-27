@@ -1,0 +1,2 @@
+# Normalizacja końców linii — bez tego Git ostrzega o CRLF przy każdym commicie.
+* text=auto eol=lf

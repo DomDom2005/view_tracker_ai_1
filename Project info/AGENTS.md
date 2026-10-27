@@ -9,6 +9,7 @@ Dokumenty projektu mieszkają w `Project info/`; kod aplikacji leży w katalogu 
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
+pip install -e .                       # pakiet z src/ → komenda view_tracker_ai_1
 ruff check . && pytest                 # przed zakończeniem każdego zadania
 pytest tests/test_analytics.py -k delta
 python -m view_tracker_ai_1.cli collect --env sandbox
