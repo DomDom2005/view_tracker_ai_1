@@ -19,7 +19,7 @@
 | Etap | Nazwa                                          | Rozmiar | Faza SPEC | Status |
 | ---- | ---------------------------------------------- | ------- | --------- | ------ |
 | 0    | Szkielet repo i weryfikacja dokumentacji       | M       | 1         | [x]    |
-| 1    | Fundament: config, błędy, modele, storage      | M       | 1         | [ ]    |
+| 1    | Fundament: config, błędy, modele, storage      | M       | 1         | [x]    |
 | 2    | Autoryzacja OAuth                              | L       | 1         | [ ]    |
 | 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [ ]    |
 | 4    | Kolektor i podstawowe CLI                      | M       | 1         | [ ]    |
@@ -89,12 +89,12 @@ pytest -q          # 0 testów jest akceptowalne, ale zbieranie nie może się w
 **Zależy od:** 0 · **Czyta:** SPEC §6 (NFR), §7, §9, §13
 
 **Zadania**
-- [ ] `errors.py`: `AuthError`, `RateLimitError`, `ValidationError` (z listą `errors`), `ApiError`, wspólna baza.
-- [ ] `config.py`: ładowanie env (`python-dotenv`), walidacja (`ALLEGRO_ENV` ∈ `sandbox|prod`), dataclass `Config` przekazywany jawnie (bez globalnego stanu). Komendy niewymagające API (np. raport z bazy demo) nie mogą wymagać sekretów Allegro.
-- [ ] W `config.py` także `setup_logging()` z **filtrem redakcji** (maskuje `Authorization`, tokeny, `client_secret`, klucze API).
-- [ ] `models.py`: `Offer`, `Snapshot`, `Series`, `SeriesSummary` (pola z SPEC §6 FR-4).
-- [ ] `storage.py`: schemat z SPEC §7 (wszystkie tabele od razu, z `schema_version`), idempotentny init, funkcje: `upsert_offer`, `insert_snapshots` (transakcja), `get_series(offer_id, since, until)`, `list_offers`, `get_last_snapshot`, cache komentarzy AI (`get/put`), `log_action`. Czas w UTC.
-- [ ] Testy: init idempotentny, `UNIQUE`, zapytania po przedziale, osobne bazy per środowisko, walidacja configu, redakcja logów.
+- [x] `errors.py`: `AuthError`, `RateLimitError` (z `retry_after`), `ValidationError` (z listą `errors` + `describe()`), `ApiError` (status + skrócone ciało), wspólna baza `AppError` + `ConfigError`/`StorageError`.
+- [x] `config.py`: ładowanie env (`python-dotenv`), walidacja (`ALLEGRO_ENV` ∈ `sandbox|prod`), dataclass `Config` przekazywany jawnie (bez globalnego stanu). Komendy niewymagające API (np. raport z bazy demo) nie wymagają sekretów Allegro — `require_allegro_credentials()` wołane dopiero tam, gdzie trzeba. Hosty API/auth per środowisko w jednym miejscu (`API_BASE_URLS`, `AUTH_BASE_URLS`).
+- [x] W `config.py` także `setup_logging()` z **filtrem redakcji** (maskuje `Authorization`, tokeny, `client_secret`, klucze API, JWT, `sk-ant-…`).
+- [x] `models.py`: `Offer`, `Snapshot`, `Series`, `SeriesSummary` (pola z SPEC §6 FR-4) + `SeriesPoint`, `DailyGain`, `Anomaly`.
+- [x] `storage.py`: schemat z SPEC §7 (wszystkie tabele od razu, z `schema_version`), idempotentny init, funkcje: `upsert_offer`, `insert_snapshots` (transakcja), `get_series(offer_id, since, until, source)`, `list_offers`, `get_last_snapshot`, `count_snapshots`, cache komentarzy AI (`get/put`), `log_action`. Czas w UTC (`to_iso`/`from_iso`). Decyzja: powtórzony zapis tego samego `(offer_id, captured_at)` jest ignorowany (`ON CONFLICT DO NOTHING`), a `insert_snapshots` zwraca liczbę faktycznie dodanych wierszy.
+- [x] Testy: init idempotentny, `UNIQUE` (idempotentny re-insert), zapytania po przedziale, osobne bazy per środowisko, walidacja configu, redakcja logów.
 
 **Bramka**
 ```bash
