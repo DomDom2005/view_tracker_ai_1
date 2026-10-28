@@ -6,9 +6,16 @@ Blokada jest na poziomie gniazd, więc łapie też biblioteki, które nie wiedz�
 
 from __future__ import annotations
 
+import os
 import socket
+import tempfile
+from pathlib import Path
 
 import pytest
+
+# matplotlib chce założyć cache w %LOCALAPPDATA%; w środowisku bez prawa zapisu tam
+# tworzy katalogi-śmieci w katalogu repo. Ustawiamy katalog cache zawczasu.
+os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "view_tracker_ai_1-mpl"))
 
 
 class NetworkAccessBlocked(RuntimeError):

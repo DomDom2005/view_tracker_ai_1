@@ -258,10 +258,15 @@ def build_series(
 
 
 # --- pomocnicze -------------------------------------------------------------
+def to_local(moment: datetime) -> datetime:
+    """Ta sama chwila w `Europe/Warsaw` — osie wykresów i raport (NFR-3)."""
+    return _as_utc(moment).astimezone(LOCAL_TZ)
+
+
 def _as_utc(moment: datetime) -> datetime:
     """Naive traktujemy jako UTC (tak samo jak `storage.from_iso`)."""
     return moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment.astimezone(UTC)
 
 
 def _local_date(moment: datetime) -> date:
-    return _as_utc(moment).astimezone(LOCAL_TZ).date()
+    return to_local(moment).date()

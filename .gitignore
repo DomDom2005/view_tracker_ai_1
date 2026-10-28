@@ -32,6 +32,8 @@ pytest-cache-files-*/
 .coverage.*
 htmlcov/
 .tmp/
+# katalog cache matplotlib, gdy %LOCALAPPDATA% nie jest zapisywalny
+matplotlib-*/
 
 # --- edytory / OS ---
 .vscode/

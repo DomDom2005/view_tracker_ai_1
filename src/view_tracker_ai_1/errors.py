@@ -20,6 +20,10 @@ class StorageError(AppError):
     """Błąd warstwy danych: nieobsługiwany schemat, naruszenie ograniczeń bazy."""
 
 
+class ChartError(AppError):
+    """Nie da się narysować wykresu: brak danych w przedziale, zły zakres osi."""
+
+
 class AuthError(AppError):
     """Autoryzacja nieudana: brak tokena, odrzucone odświeżenie, odmowa użytkownika."""
 
