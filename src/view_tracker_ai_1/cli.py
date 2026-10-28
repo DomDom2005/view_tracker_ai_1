@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TextIO
 from zoneinfo import ZoneInfo
 
-from view_tracker_ai_1 import __version__, analytics, charts, collector, storage
+from view_tracker_ai_1 import __version__, ai_comment, analytics, collector, storage
 from view_tracker_ai_1.auth import DeviceAuthorization, DeviceFlowAuth
 from view_tracker_ai_1.client import AllegroClient
 from view_tracker_ai_1.config import Config, setup_logging
@@ -128,6 +128,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--out", required=True, type=Path, metavar="FILE.png", help="plik PNG"
     )
     chart_parser.set_defaults(handler=_cmd_chart)
+
+    comment_parser = commands.add_parser("comment", help="komentarz AI do wyników oferty")
+    _add_global_options(comment_parser, suppress_defaults=True)
+    comment_parser.add_argument("--offer", required=True, metavar="ID", help="identyfikator oferty")
+    comment_parser.add_argument(
+        "--range",
+        dest="range_key",
+        required=True,
+        choices=analytics.RANGE_KEYS,
+        help="przedział czasu",
+    )
+    comment_parser.add_argument(
+        "--metric",
+        choices=("visits", "watchers"),
+        default="visits",
+        help="metryka (domyślnie visits)",
+    )
+    comment_parser.add_argument(
+        "--no-ai",
+        action="store_true",
+        dest="no_ai",
+        help="nie wołaj modelu — użyj deterministycznej atrapy",
+    )
+    comment_parser.set_defaults(handler=_cmd_comment)
 
     return parser
 
@@ -304,6 +328,10 @@ def _cmd_collect(args: argparse.Namespace, context: CliContext) -> int:
 
 
 def _cmd_chart(args: argparse.Namespace, context: CliContext) -> int:
+    # Import lokalny: matplotlib jest ciężki i niepotrzebny w `auth`, `collect` czy
+    # `comment`; poza tym przy pierwszym imporcie tworzy katalog cache.
+    from view_tracker_ai_1 import charts
+
     conn = _open_db(context.config)
     try:
         offer = next(
@@ -343,6 +371,52 @@ def _cmd_chart(args: argparse.Namespace, context: CliContext) -> int:
     return EXIT_OK
 
 
+def _cmd_comment(args: argparse.Namespace, context: CliContext) -> int:
+    conn = _open_db(context.config)
+    try:
+        offer = next(
+            (item for item in storage.list_offers(conn) if item.offer_id == args.offer), None
+        )
+        if offer is None:
+            print(
+                f"Nie ma oferty {args.offer} w bazie — uruchom najpierw `collect`.",
+                file=context.stderr,
+            )
+            return EXIT_USAGE
+
+        snapshots = storage.get_series(conn, offer.offer_id)
+        source = snapshots[0].source if snapshots else "api"
+        series = analytics.build_series(
+            snapshots, offer_id=offer.offer_id, metric=args.metric, source=source
+        )
+        now = _now()
+        summary = analytics.summarize(series, range_key=args.range_key, now=now)
+        if summary.n_points == 0:
+            print(
+                f"Brak danych w przedziale {args.range_key} — uruchom `collect` "
+                "albo wybierz inny zakres.",
+                file=context.stderr,
+            )
+            return EXIT_USAGE
+
+        generator = _build_generator(context.config, no_ai=args.no_ai)
+        text = ai_comment.generate_comment(
+            summary,
+            offer_id=offer.offer_id,
+            offer_name=offer.name,
+            range_key=args.range_key,
+            metric=args.metric,
+            generator=generator,
+            conn=conn,
+            now=now,
+        )
+    finally:
+        conn.close()
+
+    print(text, file=context.stdout)
+    return EXIT_OK
+
+
 # --- fabryki (podmieniane w testach) ---------------------------------------
 def _build_auth(config: Config) -> DeviceFlowAuth:
     return DeviceFlowAuth(config=config)
@@ -350,6 +424,14 @@ def _build_auth(config: Config) -> DeviceFlowAuth:
 
 def _build_client(config: Config) -> AllegroClient:
     return AllegroClient(config=config)
+
+
+def _build_generator(config: Config, *, no_ai: bool) -> ai_comment.CommentGenerator:
+    """Wybierz generator: atrapa przy `--no-ai` albo gdy LLM jest wyłączony w env."""
+    if no_ai or config.llm_provider != "anthropic":
+        return ai_comment.FakeCommentGenerator()
+    api_key, model = config.require_llm()
+    return ai_comment.AnthropicCommentGenerator(api_key=api_key, model=model)
 
 
 def _open_db(config: Config) -> sqlite3.Connection:

@@ -151,6 +151,7 @@ def prepare_chart_db(path: Path, *, hours: int = 48, newest: datetime = NOW) -> 
         ["offers", "list", "--help"],
         ["collect", "--help"],
         ["chart", "--help"],
+        ["comment", "--help"],
     ],
 )
 def test_help_exits_zero(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
@@ -219,9 +220,7 @@ def test_auth_login_prints_code_but_not_tokens(
 
 
 # --- offers list -------------------------------------------------------------
-def test_offers_list_on_empty_database(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_offers_list_on_empty_database(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     db_path = tmp_path / "pusta.db"
 
     assert cli.main(["offers", "list", "--db", str(db_path)]) == cli.EXIT_OK
@@ -242,9 +241,7 @@ def test_offers_list_prints_saved_offers(
     assert "2026-10-28" in output
 
 
-def test_offers_list_filters_by_status(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_offers_list_filters_by_status(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     db_path = tmp_path / "statusy.db"
     prepare_db(db_path)
     conn = storage.connect(db_path)
@@ -318,9 +315,7 @@ def test_collect_maps_api_error_to_exit_three(
     assert "Błąd API" in capsys.readouterr().err
 
 
-def test_storage_error_maps_to_exit_one(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_storage_error_maps_to_exit_one(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     db_path = tmp_path / "stara.db"
     conn = sqlite3.connect(db_path)
     conn.executescript(storage.SCHEMA_SQL)
@@ -366,9 +361,7 @@ def test_config_error_maps_to_exit_one(
     assert "Błąd konfiguracji" in capsys.readouterr().err
 
 
-def test_env_option_overrides_environment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_env_option_overrides_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[object] = []
 
     def build(config):  # noqa: ANN001, ANN202 - przechwytuje konfigurację
@@ -385,9 +378,7 @@ def test_env_option_overrides_environment(
     assert config.api_base_url == "https://api.allegro.pl"  # type: ignore[attr-defined]
 
 
-def test_verbose_switches_logging_to_debug(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_verbose_switches_logging_to_debug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[object] = []
 
     def build(config):  # noqa: ANN001, ANN202 - przechwytuje konfigurację
@@ -481,3 +472,60 @@ def test_chart_without_data_in_range_maps_to_exit_one(
 
     assert code == cli.EXIT_USAGE
     assert "Błąd wykresu" in capsys.readouterr().err
+
+
+# --- comment -----------------------------------------------------------------
+def test_comment_without_ai_uses_the_fake_generator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "demo.db"
+    prepare_chart_db(db_path)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+
+    code = cli.main(["comment", "--db", str(db_path), "--offer", "1", "--range", "24h", "--no-ai"])
+
+    assert code == cli.EXIT_OK
+    assert "komentarz bez AI" in capsys.readouterr().out
+
+
+def test_comment_prints_gate_message_for_thin_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "ubogie.db"
+    prepare_chart_db(db_path, hours=3)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+
+    code = cli.main(["comment", "--db", str(db_path), "--offer", "1", "--range", "24h", "--no-ai"])
+
+    assert code == cli.EXIT_OK
+    assert "Za mało danych" in capsys.readouterr().out
+
+
+def test_comment_requires_llm_model_when_provider_is_anthropic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "demo.db"
+    prepare_chart_db(db_path)
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+
+    code = cli.main(["comment", "--db", str(db_path), "--offer", "1", "--range", "24h"])
+
+    assert code == cli.EXIT_USAGE
+    assert "Błąd konfiguracji" in capsys.readouterr().err
+
+
+def test_comment_rejects_unknown_offer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "demo.db"
+    prepare_chart_db(db_path)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+
+    code = cli.main(
+        ["comment", "--db", str(db_path), "--offer", "404", "--range", "24h", "--no-ai"]
+    )
+
+    assert code == cli.EXIT_USAGE
+    assert "Nie ma oferty" in capsys.readouterr().err
