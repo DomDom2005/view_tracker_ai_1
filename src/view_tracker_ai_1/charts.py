@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, time
+from io import BytesIO
 from pathlib import Path
 
 import matplotlib
@@ -73,25 +74,15 @@ def render_chart(
     błędem — SPEC §4.2). Dolny panel: dzienny przyrost po dobie `Europe/Warsaw`.
     """
     metric_key: Metric = metric or series.metric
-    summary = analytics.summarize(series, range_key=range_key, now=now)
-    points = analytics.select_points(series.points, range_key, now)
-    if not points or summary.n_points == 0:
-        raise ChartError(
-            f"Brak danych w przedziale {range_key!r} dla oferty {series.offer_id} — "
-            "uruchom `collect` albo wybierz inny zakres."
-        )
+    points, summary = _prepare(series, range_key=range_key, now=now)
 
     target = Path(out_path)
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    moments = [analytics.to_local(point.captured_at) for point in points]
-    figure, (top, bottom) = plt.subplots(
-        2, 1, figsize=FIGURE_SIZE, sharex=True, gridspec_kw={"height_ratios": [2, 1]}
+    figure = _build_figure(
+        series, points, summary, offer_name=offer_name, range_key=range_key, metric=metric_key
     )
     try:
-        _draw_level(top, moments, points, summary)
-        _draw_gains(bottom, analytics.daily_gains(points))
-        _decorate(figure, top, bottom, series, summary, offer_name, range_key, metric_key)
         figure.savefig(target, dpi=DPI, bbox_inches="tight", facecolor="white")
     finally:
         plt.close(figure)
@@ -105,6 +96,61 @@ def render_chart(
         coverage=summary.coverage,
         anomalies=len(summary.anomalies),
     )
+
+
+def render_png(
+    series: Series,
+    *,
+    offer_name: str,
+    range_key: str,
+    now: datetime,
+    metric: Metric | None = None,
+) -> bytes:
+    """Ten sam wykres, ale do pamięci — raport osadza go jako base64 (SPEC §11)."""
+    metric_key: Metric = metric or series.metric
+    points, summary = _prepare(series, range_key=range_key, now=now)
+
+    figure = _build_figure(
+        series, points, summary, offer_name=offer_name, range_key=range_key, metric=metric_key
+    )
+    buffer = BytesIO()
+    try:
+        figure.savefig(buffer, format="png", dpi=DPI, bbox_inches="tight", facecolor="white")
+    finally:
+        plt.close(figure)
+    return buffer.getvalue()
+
+
+def _prepare(
+    series: Series, *, range_key: str, now: datetime
+) -> tuple[tuple[SeriesPoint, ...], SeriesSummary]:
+    summary = analytics.summarize(series, range_key=range_key, now=now)
+    points = analytics.select_points(series.points, range_key, now)
+    if not points or summary.n_points == 0:
+        raise ChartError(
+            f"Brak danych w przedziale {range_key!r} dla oferty {series.offer_id} — "
+            "uruchom `collect` albo wybierz inny zakres."
+        )
+    return points, summary
+
+
+def _build_figure(
+    series: Series,
+    points: tuple[SeriesPoint, ...],
+    summary: SeriesSummary,
+    *,
+    offer_name: str,
+    range_key: str,
+    metric: Metric,
+) -> plt.Figure:
+    moments = [analytics.to_local(point.captured_at) for point in points]
+    figure, (top, bottom) = plt.subplots(
+        2, 1, figsize=FIGURE_SIZE, sharex=True, gridspec_kw={"height_ratios": [2, 1]}
+    )
+    _draw_level(top, moments, points, summary)
+    _draw_gains(bottom, analytics.daily_gains(points))
+    _decorate(figure, top, bottom, series, summary, offer_name, range_key, metric)
+    return figure
 
 
 # --- panele -----------------------------------------------------------------
@@ -257,5 +303,6 @@ __all__ = [
     "SYNTHETIC_WATERMARK",
     "ChartResult",
     "render_chart",
+    "render_png",
     "watermark_text",
 ]
