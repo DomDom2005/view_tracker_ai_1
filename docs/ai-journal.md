@@ -14,6 +14,7 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-28 | Etap 2 — OAuth device flow i magazyn tokenów | `DeviceFlowAuth` (start → polling → tokeny, `slow_down`, `access_denied`, wygaśnięcie kodu), `TokenStore` (katalog 700, plik 600, zapis przez `mkstemp` + `os.replace`), rotacja refresh tokena (nowy zapisywany od razu, stary zachowany, gdy serwer go nie odeśle), `get_valid_token()` z buforem 5 min, `status()` bez ujawniania tokenów; `Tokens`/`DeviceAuthorization` z `repr=False` na sekretach | 101 testów (1 skip na Windows); pokrycie `auth.py` 92%; `ruff check .` czysty; wszystkie żądania przez `responses` | trafne po korektach (patrz „Notatki z etapu 2”) |
 | 2026-10-28 | Etap 3 — klient HTTP, retry, błędy, paginacja | `AllegroClient` (`get`, `iter_offers`, `RemoteOffer`): nagłówki `Accept` + `User-Agent`, Bearer z `auth.get_valid_token()`, timeouty 10/30 s, polityka `401` (odśwież + jeden retry), `422` → `ValidationError`, `429` (`Retry-After` jako sekundy albo HTTP-date, fallback 60 s z jitterem, 5 prób), `5xx`/timeout (3 próby), inne `4xx` → `ApiError`; paginacja `offset/limit` z jawnym `limit` (100, zakres 1..1000), stop na `len < limit` lub `offset >= totalCount`, pauza 0,2 s; fixtures `offers_page1..3.json` | 129 testów; pokrycie `client.py` 98%; brak prawdziwych `sleep` (uśpienia to lista); test na `caplog`, że token nie trafia do logów; `ruff check .` czysty | trafne; jedno świadome odstępstwo (start backoffu 60 s, nie 1 s) — patrz „Notatki z etapu 3” |
 | 2026-10-28 | Etap 4 — kolektor i CLI (koniec fazy 1) | `collector.run_once` (wspólny `captured_at`, jedna transakcja, zwraca liczbę nowych snapshotów) i `run_forever` (min. 300 s, `AuthError` zatrzymuje pętlę, inne błędy tylko logowane); `storage.save_collection` dla atomowego zapisu ofert + snapshotów; CLI z komendami `auth login`/`auth status`/`offers list`/`collect` oraz opcjami `--env`/`--db`/`-v` także po komendzie; `CommandParser` mapuje błędy użycia na kod 1; `scripts/probe_counter.py` (faza 0) | 164 testy (1 skip); pokrycie `cli.py` 98%, `collector.py` 100%, `storage.py` 94%; bramka PLAN uruchomiona dosłownie, w tym `python -m view_tracker_ai_1.cli --help`; `pip install -e .` i `view_tracker_ai_1 --version` wreszcie zweryfikowane | trafne po jednej realnej korekcie (licznik zapisanych snapshotów) — patrz „Notatki z etapu 4” |
+| 2026-10-28 | Reinstalacja środowiska na świeżym klonie (urządzenie **HP_Pavilion**) | `git clone` do pustego workspace; `http.sslBackend=openssl` w lokalnym `.git/config` (schannel dawał `SEC_E_NO_CREDENTIALS`); venv przez `--without-pip` + globalny `pip --python` (padający `ensurepip`); `TMP`/`TEMP` przekierowane do `.tmp/`; zdiagnozowana przyczyna blokady `tempfile.mkdtemp()` — katalog z `mode=0o700` dostaje ACL odcinający zapis i listowanie **także twórcy**; obejście: `sitecustomize.py` maskujący tryb do `0o777` przez `PYTHONPATH`; `pip install -e .` z `--no-build-isolation` | Eksperyment na trzech trybach `os.mkdir`: domyślny i `0o777` → zapis i `listdir` OK, `0o700` → `PermissionError` w obu; `ruff check .` → All checks passed; `pytest -q` → 164 passed, 1 skipped | trafne, ale to **powtórka** problemu z etapu 0; nowe jest to, że obejście działa w `workspace-write`, bez pełnego dostępu — patrz „Notatki ze środowiska — HP_Pavilion” |
 
 ## Notatki z etapu 0 (środowisko)
 
@@ -71,6 +72,24 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 **Korekta (realna):** pierwsza wersja `save_collection` liczyła wszystkie zmiany w połączeniu, więc `collect` na 2 ofertach meldował „4 nowych snapshotów” (2 upserty ofert + 2 snapshoty). Test to złapał; licznik liczy teraz tylko wstawienia do `snapshots`.
 
 **Faza 1 domknięta:** `collect` na atrapie klienta zapisuje snapshoty, `offers list` je czyta, pokrycie > 80% w każdym module, `pip install -e .` i `view_tracker_ai_1 --version` działają — warunek akceptacji z SPEC §15 spełniony (poza prawdziwym kontem sandbox, które należy do człowieka).
+
+## Notatki ze środowiska — HP_Pavilion (2026-10-28)
+
+Ta sesja powstała na urządzeniu **HP_Pavilion** (konto `hp_pavilion\domin`), po świeżym sklonowaniu repo do pustego katalogu i bez pełnego dostępu do plików (tryb `workspace-write`).
+
+- **Powtórka problemu z etapu 0, ale z węższą diagnozą.** W „Notatki z etapu 0” zapisano, że sandbox blokuje zapis w katalogach tworzonych przez `tempfile.mkdtemp` i że ratunkiem jest pełny dostęp do plików. Dziś udało się to odtworzyć i zawęzić: problemem nie jest `tempfile`, a sam `os.mkdir` z trybem `0o700` — taki katalog dostaje ACL, który odmawia zapisu **i** listowania również procesowi, który go utworzył. `mkdtemp()` zawsze używa `0o700`, dlatego padał pip, a w testach fixture `tmp_path`.
+- **Dowód:** trzy katalogi, ten sam proces, ta sama sesja:
+
+  | tryb `os.mkdir` | zapis pliku w środku | `listdir` |
+  | --- | --- | --- |
+  | domyślny | OK | OK |
+  | `0o700` | `PermissionError` | `PermissionError` |
+  | `0o777` | OK | OK |
+
+- **Obejście bez pełnego dostępu:** `.tmp/sitelib/sitecustomize.py` podmienia `os.mkdir` tak, by zawsze używał `0o777`; wystarczy wpisać ten katalog na `PYTHONPATH`, a poprawka obejmuje też podprocesy (PEP 517 build backend). Do samej instalacji służy `.tmp/piprun.py`, który robi to wprost przed importem pip. Oba pliki leżą w `.tmp/`, poza repo.
+- **Czego to nie naprawia:** katalogi utworzone wcześniej z `0o700` (`.tmp/pytest-of-domin`, część `pip-*`) zostają nieusuwalne — `Remove-Item` również dostaje odmowę. Dlatego `pytest` trzeba wołać z `--basetemp` wskazującym katalog utworzony poza Pythonem.
+- **Python 3.13.3, nie 3.14.6.** Interpreter z etapu 0 (`...\pythoncore-3.14-64\python.exe`) już na tej maszynie nie istnieje; `py -0p` pokazuje tylko 3.13.3 i ten trafił do `.venv`. `requires-python = ">=3.11"` jest spełnione, `ruff` i 164 testy są zielone, ale to **inny interpreter** niż ten, na którym pinowano wersje w `requirements*.txt`. Decyzja dla człowieka: doinstalować 3.14 i powtórzyć bramkę albo zaakceptować 3.13 i opisać to jako ograniczenie.
+- **Wpływ na kolejne etapy:** bramki z PLAN-u uruchamiane dosłownie (`pytest -q`) w tym trybie nadal będą zbierać błędy `tmp_path`; trzeba wtedy albo pełnego dostępu do plików, albo `PYTHONPATH=.tmp/sitelib` i `--basetemp`. Kodu aplikacji to nie dotyczy.
 
 ## Odstępstwa od SPEC
 
