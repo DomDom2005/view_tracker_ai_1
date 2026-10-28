@@ -13,9 +13,30 @@ from pathlib import Path
 
 import pytest
 
-# matplotlib chce założyć cache w %LOCALAPPDATA%; w środowisku bez prawa zapisu tam
-# tworzy katalogi-śmieci w katalogu repo. Ustawiamy katalog cache zawczasu.
-os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "view_tracker_ai_1-mpl"))
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_SCRATCH = _REPO_ROOT / ".tmp"
+
+
+def _keep_caches_in_scratch() -> None:
+    """Nie pozwól testom tworzyć katalogów-śmieci w katalogu repo.
+
+    Na tej maszynie katalog tymczasowy systemu bywa niezapisywalny (sandbox blokuje
+    tworzenie katalogów przez procesy potomne), więc `tempfile.gettempdir()` zwraca
+    katalog repo — i tam lądują `pytest-of-*` oraz katalog cache matplotliba.
+    """
+    system_tmp = Path(tempfile.gettempdir()).resolve()
+    if not system_tmp.is_relative_to(_REPO_ROOT):
+        os.environ.setdefault("MPLCONFIGDIR", str(system_tmp / "view_tracker_ai_1-mpl"))
+        return
+
+    _SCRATCH.mkdir(parents=True, exist_ok=True)
+    for name in ("TMPDIR", "TMP", "TEMP"):
+        os.environ[name] = str(_SCRATCH)
+    tempfile.tempdir = None  # porzuć zapamiętaną wartość, żeby nowy TMP zadziałał
+    os.environ.setdefault("MPLCONFIGDIR", str(_SCRATCH / "mplconfig"))
+
+
+_keep_caches_in_scratch()
 
 
 class NetworkAccessBlocked(RuntimeError):
