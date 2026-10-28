@@ -26,7 +26,7 @@
 | 5    | Analityka                                      | L       | 2         | [x]    |
 | 6    | Dane demo i wykresy                            | M       | 2         | [x]    |
 | 7    | Moduł AI                                       | M       | 2         | [x]    |
-| 8    | Raport HTML                                    | M       | 2         | [ ]    |
+| 8    | Raport HTML                                    | M       | 2         | [x]    |
 | 9    | Zmiana ceny przez API (opcjonalny, decyzja D1) | M       | 3         | [ ]    |
 | 10   | Dokumentacja                                   | M       | —         | [ ]    |
 | 11   | Domknięcie i kontrola jakości                  | S       | —         | [ ]    |
@@ -259,9 +259,9 @@ ruff check . && pytest -q tests/test_ai_comment.py --cov=src/view_tracker_ai_1
 **Zależy od:** 6, 7 · **Czyta:** SPEC §6 FR-7, §11
 
 **Zadania**
-- [ ] `report.py` + szablon Jinja2 (**autoescape włączony**): nagłówek z badge środowiska (SANDBOX/PROD/DEMO) i czasem generowania, sekcja na ofertę z wykresami wybranych przedziałów (obrazy base64), tabela liczb z FR-4, komentarz AI, stopka z ostrzeżeniem o semantyce licznika (SPEC §4.2).
-- [ ] CLI: `report --range ... [--offer ID ...] [--no-ai] --out reports/report.html`.
-- [ ] Testy: autoescape (nazwa oferty z `<script>`), badge środowiska, raport z danych demo zawiera napis „DANE SYNTETYCZNE”.
+- [x] `report.py` + szablon Jinja2 (**autoescape włączony**): nagłówek z badge środowiska (SANDBOX/PROD/DEMO) i czasem generowania, sekcja na ofertę z wykresami wybranych przedziałów (obrazy base64), tabela liczb z FR-4, komentarz AI, stopka z ostrzeżeniem o semantyce licznika (SPEC §4.2). Szablon jest stałą w module (nie plikiem), żeby instalacja pakietu nie wymagała danych pakietu.
+- [x] CLI: `report --range ... [--offer ID ...] [--no-ai] --out reports/report.html` (`--range` i `--offer` można powtarzać; domyślnie `7d`).
+- [x] Testy: autoescape (nazwa oferty z `<script>`), badge środowiska, raport z danych demo zawiera napis „DANE SYNTETYCZNE”. Dodatkowo: samodzielność pliku (zero `http(s)://`, `<link>`, `<script>`), pomijanie przedziałów bez danych, `series_for_offer`.
 
 **Bramka**
 ```bash

@@ -19,6 +19,7 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-28 | Etap 5 — analityka | `analytics.py` jako funkcje czyste: `range_duration`/`select_points` (`24h`/`7d`/`30d`/`90d`/`all`), `deltas`/`positive_gains`/`gained_total`, `find_anomalies` (`counter_decrease` z ujemną deltą, poza przyrostami), `daily_gains` po dobie `Europe/Warsaw` z DST, `coverage`, `slope_per_day` (OLS) i `label_trend` z progiem 0,02 jako stałą, `summarize` → `SeriesSummary`, `build_series` (snapshoty → seria); przy < 3 punktach nachylenie 0.0 i etykieta `brak danych` | `ruff check .` czysty; `pytest -q` → 205 passed, 1 skipped; pokrycie `analytics.py` **100%**, całości 97%; test na dobę 25-godzinną 2026-10-25 (25 h w UTC kontra 24 h czasu ściennego) oraz na serię samych zer | trafne po korektach (patrz „Notatki z etapu 5”) |
 | 2026-10-28 | Etap 6 — dane demo i wykresy | `scripts/seed_demo_data.py` (deterministyczny `--seed` i `--end`, 5 ofert × 90 dni: wzrost, spadek, plateau, anomalia, luki; szum na **przyrostach**, odmowa zapisu do bazy z `source='api'`, zastępowanie poprzednich danych demo); `charts.py` (dwa panele, markery anomalii pod linią, znak wodny tylko w górnym panelu, komunikat zamiast pustej osi przy braku przyrostów, `ChartResult` z metadanymi); komenda `chart` w CLI z wstrzykiwalnym `_now()` i `ChartError` → kod 1; `analytics.to_local()` | `ruff check .` czysty; `pytest -q` → 229 passed, 1 skipped; pokrycie `charts.py` 97%, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie (seed → 10 047 snapshotów, `chart` → PNG); **kontrola wzrokowa** 9 wykresów (5 przedziałów + 4 wzorce) i po niej 8 poprawek | trafne po korektach wizualnych (patrz „Notatki z etapu 6”) |
 | 2026-10-28 | Etap 7 — moduł AI | `ai_comment.py`: protokół `CommentGenerator`, `FakeCommentGenerator` (deterministyczny, jawnie „komentarz bez AI”), `AnthropicCommentGenerator` (klient leniwie, `client_factory` do testów), `gate_message` (`n_points < 6` lub `coverage < 0.3`), `build_prompt` z blokiem `<dane>` i neutralizacją `<`/`>` w nazwie oferty, `input_hash` (sha256 z agregatów), `clean_comment` (markdown + 700 znaków), `generate_comment` (bramka → cache → model → fallback); `Config.require_llm()`; CLI `comment --offer --range [--metric] [--no-ai]` | `ruff check .` czysty; `pytest -q` → 262 passed, 1 skipped; pokrycie `ai_comment.py` **100%**, `cli.py` i `config.py` 98%, całości 97%; testy: brak wywołania przy bramce, cache hit bez drugiego wołania, próba wstrzyknięcia `</dane>`, brak klucza API w komunikatach błędów, leniwe SDK | trafne po korektach (patrz „Notatki z etapu 7”); **nie testowane na żywym modelu** |
+| 2026-10-28 | Etap 8 — raport HTML (koniec fazy 2) | `report.py`: `build_report` (serie → kafle: wykres base64 + tabela FR-4 + komentarz), szablon Jinja2 z autoescape, badge SANDBOX/PROD/DEMO, ostrzeżenie o danych syntetycznych i o semantyce licznika, `write_report` (UTF-8), `series_for_offer`; `charts.render_png` (PNG do pamięci, wspólna figura z `render_chart`); CLI `report --range --range ... [--offer] [--metric] [--no-ai] --out` z lokalnym importem matplotliba | `ruff check .` czysty; `pytest -q` → 280 passed, 1 skipped; pokrycie `report.py` **100%**, `charts.py` **100%**, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie: raport 5 ofert / 5 sekcji, 0 odwołań `http(s)://`, 10 osadzonych PNG (sprawdzone: base64 dekoduje się do prawidłowych plików PNG) | trafne po korektach (patrz „Notatki z etapu 8”) |
 
 ## Notatki z etapu 0 (środowisko)
 
@@ -170,6 +171,25 @@ Ta sesja powstała na urządzeniu **HP_Pavilion** (konto `hp_pavilion\domin`), p
 **Czego nie sprawdzono:** komentarz **nie był uruchamiany na żywym modelu** — w repo nie ma klucza API i testy nie mogą wychodzić do sieci (SPEC §12). Wszystkie ścieżki modelu są sprawdzone na atrapie klienta; jakość samego tekstu (czy model nie zmyśla przyczyn) trzeba ocenić ręcznie na koncie z kluczem — to zadanie człowieka ze SPEC §16.
 
 **Obserwacja, nie błąd:** próg trendu `rel > 0.02` (nachylenie dzielone przez średnią) sprawia, że liniowo rosnąca oferta demo 1004 (151 → 2454 w 90 dni) dostaje etykietę `stabilny` — bo 25 wyświetleń/dzień to 1,9% średniej 1300. To wprost wzór z SPEC §6 FR-4; nie zmieniam go, ale przy czytaniu raportu warto o tym pamiętać.
+
+## Notatki z etapu 8 (decyzje i korekty)
+
+**Decyzje projektowe:**
+
+- **Szablon jako stała w module**, nie plik `.j2`. Plik wymagałby konfiguracji danych pakietu (`package-data`/`MANIFEST`), a raport ma być samodzielny i działać z instalacji edytowalnej oraz z koła. Koszt: HTML jest w Pythonie — zaakceptowany, bo to jeden plik i nie ma go potrzeby edytować poza kodem.
+- **`charts.render_png`** zwraca PNG w pamięci i korzysta z tej samej funkcji rysującej co `render_chart`. Bez tego raport musiałby zapisywać pliki tymczasowe, a testy — je sprzątać.
+- **Raport nie zna API.** `build_report` dostaje gotowe pary `(Offer, Series)`, więc ten sam kod zbuduje raport z bazy sandbox, produkcyjnej i demo; CLI robi tylko odczyt z bazy.
+- **Badge `DEMO`** pojawia się, gdy w danych jest cokolwiek syntetycznego — środowisko jest wtedy nieistotne, bo raport nie pochodzi z API.
+- **`--range` i `--offer` można powtarzać**, domyślnie `7d`. Dzięki temu jeden raport może pokazać np. 7d i 30d tej samej oferty.
+
+**Korekty w trakcie etapu:**
+
+1. Pierwsza wersja `build_report` miała typy `dict[str, tuple[object, object]]` z `# type: ignore` — poprawione na `dict[str, tuple[Offer, Series]]`.
+2. Szablon miał linię dłuższą niż 100 znaków (ruff E501) — zawinięta.
+3. **Dwa razy zepsułem kodowanie pliku, edytując go przez powłokę** (`Set-Content`): `report.py` i wcześniej `PLAN.md` dostały tekst podwójnie zakodowany. Oba pliki przepisane narzędziem do edycji; weryfikacja: `read_bytes().decode("utf-8")` przechodzi, a polskie znaki w raporcie są poprawne. To ten sam błąd, który opisałem w „Notatki z etapu 6” — powtórzony, mimo własnej notatki. Wniosek: w tym środowisku **żadnych** plików repo przez `Set-Content`/`Add-Content`.
+4. Testy raportu wpadały w bramkę AI (48-godzinna seria w przedziale 7d to pokrycie 29%) — nie był to błąd kodu, tylko danych testowych; domyślny przedział w testach zmieniony na `24h`, a test bramki dostał osobny przypadek.
+
+**Faza 2 domknięta:** `seed_demo_data` → `chart` → `comment` → `report --range 30d --no-ai` daje jeden samodzielny plik HTML z wykresami, tabelą i komentarzem; pokrycie `report.py` i `charts.py` 100%, całości 97%. Prawdziwe konto sandbox i żywy model nadal należą do człowieka (SPEC §16).
 
 ## Odstępstwa od SPEC
 
