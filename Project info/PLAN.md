@@ -190,6 +190,7 @@ python -m view_tracker_ai_1.cli --help
 - [ ] Spadek licznika: do przyrostu wlicz 0, zwiększ licznik anomalii, **nigdy ujemnych przyrostów**.
 - [ ] Przy < 3 punktach etykieta trendu `brak danych`.
 - [ ] Testy z SPEC §12: seria rosnąca, spadek licznika, luki i `coverage`, agregacja dzienna przez zmianę czasu (**2026-10-25, doba 25-godzinna**), cztery etykiety trendu. Dodaj test na serię z samych zer (zero to poprawna wartość).
+- [ ] Poprawka zaległa z etapu 4: `tests/test_cli.py::test_config_error_maps_to_exit_one` zgłasza `ResourceWarning: unclosed database` — ścieżka błędu w CLI zostawia otwarte połączenie SQLite. Zamknąć połączenie i pokryć to testem.
 
 **Bramka**
 ```bash
