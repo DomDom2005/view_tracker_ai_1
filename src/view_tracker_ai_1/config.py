@@ -106,6 +106,22 @@ class Config:
                 "jeśli naprawdę chcesz zmieniać dane poza sandboxem."
             )
 
+    def require_llm(self) -> tuple[str, str]:
+        """Zwróć `(api_key, model)` albo rzuć `ConfigError` z podpowiedzią (SPEC §13)."""
+        if self.llm_provider != "anthropic":
+            raise ConfigError(
+                "Komentarz AI jest wyłączony (LLM_PROVIDER=none). Ustaw LLM_PROVIDER=anthropic "
+                "albo użyj --no-ai."
+            )
+        if not self.anthropic_api_key:
+            raise ConfigError("LLM_PROVIDER=anthropic wymaga ANTHROPIC_API_KEY (w `.env`).")
+        if not self.llm_model:
+            raise ConfigError(
+                "LLM_PROVIDER=anthropic wymaga LLM_MODEL — nazwy modelu nie zgadujemy "
+                "(SPEC §0 pkt 2)."
+            )
+        return self.anthropic_api_key, self.llm_model
+
     def with_overrides(self, **changes: object) -> Config:
         """Kopia konfiguracji z nadpisanymi polami (np. `--env`/`--db` z CLI)."""
         return replace(self, **changes)  # type: ignore[arg-type]

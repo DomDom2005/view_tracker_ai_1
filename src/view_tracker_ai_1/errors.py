@@ -24,6 +24,10 @@ class ChartError(AppError):
     """Nie da się narysować wykresu: brak danych w przedziale, zły zakres osi."""
 
 
+class CommentError(AppError):
+    """Nie udało się uzyskać komentarza AI (błąd modelu, pusta odpowiedź, brak konfiguracji)."""
+
+
 class AuthError(AppError):
     """Autoryzacja nieudana: brak tokena, odrzucone odświeżenie, odmowa użytkownika."""
 
