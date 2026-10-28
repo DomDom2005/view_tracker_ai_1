@@ -121,6 +121,24 @@ def prepare_db(path: Path) -> None:
     conn.close()
 
 
+def prepare_chart_db(path: Path, *, hours: int = 48, newest: datetime = NOW) -> None:
+    """Baza z serią godzinową kończącą się na `newest` (dane syntetyczne)."""
+    conn = storage.connect(path)
+    storage.init_db(conn)
+    snapshots = [
+        Snapshot(
+            offer_id="1",
+            captured_at=newest - timedelta(hours=back),
+            visits_count=100 + (hours - back),
+            watchers_count=5,
+            source="synthetic",
+        )
+        for back in range(hours)
+    ]
+    storage.save_collection(conn, offers=[offer("1", "Suszarka")], snapshots=snapshots)
+    conn.close()
+
+
 # --- parser ------------------------------------------------------------------
 @pytest.mark.parametrize(
     "argv",
@@ -132,6 +150,7 @@ def prepare_db(path: Path) -> None:
         ["offers", "--help"],
         ["offers", "list", "--help"],
         ["collect", "--help"],
+        ["chart", "--help"],
     ],
 )
 def test_help_exits_zero(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
@@ -392,3 +411,73 @@ def test_ctrl_c_exits_zero(
 
     assert cli.main(["collect", "--loop", "--db", str(tmp_path / "ctrl-c.db")]) == cli.EXIT_OK
     assert "Przerwano" in capsys.readouterr().err
+
+
+# --- chart -------------------------------------------------------------------
+def test_chart_writes_png_for_synthetic_series(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "demo.db"
+    prepare_chart_db(db_path)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+    target = tmp_path / "wykres.png"
+
+    code = cli.main(
+        ["chart", "--db", str(db_path), "--offer", "1", "--range", "24h", "--out", str(target)]
+    )
+
+    assert code == cli.EXIT_OK
+    assert target.exists()
+    output = capsys.readouterr().out
+    assert "Zapisano wykres" in output
+    assert "DANE SYNTETYCZNE" in output
+
+
+def test_chart_rejects_unknown_offer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "demo.db"
+    prepare_chart_db(db_path)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+
+    code = cli.main(
+        [
+            "chart",
+            "--db",
+            str(db_path),
+            "--offer",
+            "404",
+            "--range",
+            "24h",
+            "--out",
+            str(tmp_path / "brak.png"),
+        ]
+    )
+
+    assert code == cli.EXIT_USAGE
+    assert "Nie ma oferty" in capsys.readouterr().err
+
+
+def test_chart_without_data_in_range_maps_to_exit_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "stara.db"
+    prepare_chart_db(db_path, newest=NOW - timedelta(days=10))
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+
+    code = cli.main(
+        [
+            "chart",
+            "--db",
+            str(db_path),
+            "--offer",
+            "1",
+            "--range",
+            "24h",
+            "--out",
+            str(tmp_path / "stara.png"),
+        ]
+    )
+
+    assert code == cli.EXIT_USAGE
+    assert "Błąd wykresu" in capsys.readouterr().err

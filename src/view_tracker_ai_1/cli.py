@@ -1,7 +1,7 @@
 """Interfejs CLI (argparse).
 
 Kody wyjścia (SPEC §8): 0 sukces, 1 błąd użytkownika/konfiguracji, 2 błąd autoryzacji,
-3 błąd API/limit. Komendy: `auth login`, `auth status`, `offers list`, `collect`.
+3 błąd API/limit. Komendy: `auth login`, `auth status`, `offers list`, `collect`, `chart`.
 """
 
 from __future__ import annotations
@@ -11,18 +11,19 @@ import sqlite3
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TextIO
 from zoneinfo import ZoneInfo
 
-from view_tracker_ai_1 import __version__, collector, storage
+from view_tracker_ai_1 import __version__, analytics, charts, collector, storage
 from view_tracker_ai_1.auth import DeviceAuthorization, DeviceFlowAuth
 from view_tracker_ai_1.client import AllegroClient
 from view_tracker_ai_1.config import Config, setup_logging
 from view_tracker_ai_1.errors import (
     ApiError,
     AuthError,
+    ChartError,
     ConfigError,
     RateLimitError,
     StorageError,
@@ -107,6 +108,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     collect_parser.set_defaults(handler=_cmd_collect)
 
+    chart_parser = commands.add_parser("chart", help="wykres PNG dla oferty")
+    _add_global_options(chart_parser, suppress_defaults=True)
+    chart_parser.add_argument("--offer", required=True, metavar="ID", help="identyfikator oferty")
+    chart_parser.add_argument(
+        "--range",
+        dest="range_key",
+        required=True,
+        choices=analytics.RANGE_KEYS,
+        help="przedział czasu",
+    )
+    chart_parser.add_argument(
+        "--metric",
+        choices=("visits", "watchers"),
+        default="visits",
+        help="metryka (domyślnie visits)",
+    )
+    chart_parser.add_argument(
+        "--out", required=True, type=Path, metavar="FILE.png", help="plik PNG"
+    )
+    chart_parser.set_defaults(handler=_cmd_chart)
+
     return parser
 
 
@@ -169,6 +191,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_API
     except StorageError as exc:
         print(f"Błąd bazy danych: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except ChartError as exc:
+        print(f"Błąd wykresu: {exc}", file=sys.stderr)
         return EXIT_USAGE
 
 
@@ -265,8 +290,7 @@ def _cmd_collect(args: argparse.Namespace, context: CliContext) -> int:
         client = _build_client(context.config)
         if args.loop:
             print(
-                f"Tryb ciągły: co {interval} s, statusy: {', '.join(statuses)}. "
-                "Ctrl+C kończy.",
+                f"Tryb ciągły: co {interval} s, statusy: {', '.join(statuses)}. Ctrl+C kończy.",
                 file=context.stdout,
             )
             context.stdout.flush()
@@ -276,6 +300,46 @@ def _cmd_collect(args: argparse.Namespace, context: CliContext) -> int:
             print(f"Zapisano {inserted} nowych snapshotów.", file=context.stdout)
     finally:
         conn.close()
+    return EXIT_OK
+
+
+def _cmd_chart(args: argparse.Namespace, context: CliContext) -> int:
+    conn = _open_db(context.config)
+    try:
+        offer = next(
+            (item for item in storage.list_offers(conn) if item.offer_id == args.offer), None
+        )
+        if offer is None:
+            print(
+                f"Nie ma oferty {args.offer} w bazie — uruchom najpierw `collect`.",
+                file=context.stderr,
+            )
+            return EXIT_USAGE
+
+        snapshots = storage.get_series(conn, offer.offer_id)
+        source = snapshots[0].source if snapshots else "api"
+        series = analytics.build_series(
+            snapshots, offer_id=offer.offer_id, metric=args.metric, source=source
+        )
+        result = charts.render_chart(
+            series,
+            offer_name=offer.name,
+            range_key=args.range_key,
+            now=_now(),
+            out_path=args.out,
+            metric=args.metric,
+        )
+    finally:
+        conn.close()
+
+    print(f"Zapisano wykres: {result.path}", file=context.stdout)
+    print(
+        f"  punktów: {result.n_points}, pokrycie: {result.coverage:.0%}, "
+        f"anomalie: {result.anomalies}",
+        file=context.stdout,
+    )
+    if result.is_synthetic:
+        print("  DANE SYNTETYCZNE — to nie są dane z API.", file=context.stdout)
     return EXIT_OK
 
 
@@ -302,6 +366,11 @@ def _open_db(config: Config) -> sqlite3.Connection:
 
 def _format_local(moment: datetime) -> str:
     return moment.astimezone(LOCAL_TZ).strftime(TIME_FORMAT)
+
+
+def _now() -> datetime:
+    """Bieżąca chwila — osobna funkcja, żeby testy mogły ją podmienić."""
+    return datetime.now(UTC)
 
 
 if __name__ == "__main__":
