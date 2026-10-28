@@ -12,9 +12,11 @@ Pliki wrzuca człowiek. Każdy zrzut: nazwa pliku → komenda, która go wywołu
 | `05-chart-30d.png` | `... chart --offer <ID> --range 30d --out reports/chart.png` | dwa panele, anomalie, pokrycie | — |
 | `06-report.png` | `... report --range 30d --out reports/report.html` | badge środowiska, tabela, komentarz AI | komentarze zawierające dane konta |
 | `07-demo-synthetic.png` | `... --db data/demo.db chart ...` | napis „DANE SYNTETYCZNE” | — |
-| `08-panel-przed-po.png` | panel sandboxa przed i po `act price --apply` | zmiana ceny oferty | dane konta, adres, zamówienia |
 | `09-error-401.png` | wywołanie z unieważnionym tokenem | czytelny komunikat „zaloguj się ponownie” | token |
-| `10-error-422.png` | `act price --apply` z niepoprawną kwotą | lista `errors` (code, message, path) | — |
+
+**Nieaktualne (etap 9 odłożony — projekt jest read-only):** `08-panel-przed-po.png` i
+`10-error-422.png` dotyczyły komendy `act price --apply`, której nie ma. Gdyby etap 9 został
+kiedykolwiek zrobiony, lista wraca do gry w podanej wcześniej formie.
 
 Zasada: na zrzutach nie może być tokenów, `client_secret`, identyfikatorów konta ani danych
 kupujących (`Project info/SPEC.md` §13).

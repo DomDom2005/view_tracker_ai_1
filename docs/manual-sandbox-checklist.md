@@ -42,7 +42,8 @@ Oczekiwane: `auth status` pokazuje ważny token bez wypisywania go; `offers list
 - Czy endpoint `device` na sandboxie to `POST https://allegro.pl.allegrosandbox.pl/auth/oauth/device`.
 - Czy `429` zawiera nagłówek `Retry-After`.
 - Znaczenie `count` vs `totalCount` w odpowiedzi `GET /sale/offers`.
-- Czy zmiana ceny (`act price --apply`) działa na sandboxie.
+- ~~Czy zmiana ceny (`act price --apply`) działa na sandboxie~~ — nieaktualne: etap 9 odłożony,
+  aplikacja jest read-only (patrz `Project info/PLAN.md`).
 - (Faza 0) Czy `visitsCount` maleje — uruchom `scripts/probe_counter.py` na ≥ 48 h na koncie
   z realnym ruchem.
 
