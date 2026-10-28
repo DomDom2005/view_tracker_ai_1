@@ -152,6 +152,7 @@ def prepare_chart_db(path: Path, *, hours: int = 48, newest: datetime = NOW) -> 
         ["collect", "--help"],
         ["chart", "--help"],
         ["comment", "--help"],
+        ["report", "--help"],
     ],
 )
 def test_help_exits_zero(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
@@ -529,3 +530,71 @@ def test_comment_rejects_unknown_offer(
 
     assert code == cli.EXIT_USAGE
     assert "Nie ma oferty" in capsys.readouterr().err
+
+
+# --- report ------------------------------------------------------------------
+def test_report_writes_self_contained_html(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "demo.db"
+    prepare_chart_db(db_path)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+    target = tmp_path / "raport.html"
+
+    code = cli.main(
+        ["report", "--db", str(db_path), "--range", "24h", "--no-ai", "--out", str(target)]
+    )
+
+    assert code == cli.EXIT_OK
+    html = target.read_text(encoding="utf-8")
+    assert html.startswith("<!doctype html>")
+    assert "data:image/png;base64," in html
+    assert "DANE SYNTETYCZNE" in html
+    assert "http://" not in html and "https://" not in html
+    output = capsys.readouterr().out
+    assert "Zapisano raport" in output
+    assert "badge: DEMO" in output
+
+
+def test_report_rejects_unknown_offer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "demo.db"
+    prepare_chart_db(db_path)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+
+    code = cli.main(
+        [
+            "report",
+            "--db",
+            str(db_path),
+            "--offer",
+            "404",
+            "--no-ai",
+            "--out",
+            str(tmp_path / "x.html"),
+        ]
+    )
+
+    assert code == cli.EXIT_USAGE
+    assert "Nie ma ofert: 404" in capsys.readouterr().err
+
+
+def test_report_on_empty_database_explains_what_to_do(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli, "_now", lambda: NOW)
+
+    code = cli.main(
+        [
+            "report",
+            "--db",
+            str(tmp_path / "pusta.db"),
+            "--no-ai",
+            "--out",
+            str(tmp_path / "x.html"),
+        ]
+    )
+
+    assert code == cli.EXIT_USAGE
+    assert "collect" in capsys.readouterr().err

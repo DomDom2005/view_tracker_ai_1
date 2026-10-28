@@ -153,6 +153,39 @@ def build_parser() -> argparse.ArgumentParser:
     )
     comment_parser.set_defaults(handler=_cmd_comment)
 
+    report_parser = commands.add_parser("report", help="raport HTML z wykresami")
+    _add_global_options(report_parser, suppress_defaults=True)
+    report_parser.add_argument(
+        "--range",
+        dest="ranges",
+        action="append",
+        choices=analytics.RANGE_KEYS,
+        help="przedział (można podać wielokrotnie; domyślnie 7d)",
+    )
+    report_parser.add_argument(
+        "--offer",
+        dest="offers",
+        action="append",
+        metavar="ID",
+        help="ogranicz raport do oferty (można podać wielokrotnie)",
+    )
+    report_parser.add_argument(
+        "--metric",
+        choices=("visits", "watchers"),
+        default="visits",
+        help="metryka (domyślnie visits)",
+    )
+    report_parser.add_argument(
+        "--no-ai",
+        action="store_true",
+        dest="no_ai",
+        help="nie wołaj modelu — użyj deterministycznej atrapy",
+    )
+    report_parser.add_argument(
+        "--out", required=True, type=Path, metavar="FILE.html", help="plik HTML"
+    )
+    report_parser.set_defaults(handler=_cmd_report)
+
     return parser
 
 
@@ -414,6 +447,59 @@ def _cmd_comment(args: argparse.Namespace, context: CliContext) -> int:
         conn.close()
 
     print(text, file=context.stdout)
+    return EXIT_OK
+
+
+def _cmd_report(args: argparse.Namespace, context: CliContext) -> int:
+    # Import lokalny (jak `charts`): raport ciągnie matplotlib, a inne komendy nie muszą.
+    from view_tracker_ai_1 import report
+
+    conn = _open_db(context.config)
+    try:
+        available = storage.list_offers(conn)
+        wanted = args.offers or []
+        selected = [item for item in available if not wanted or item.offer_id in wanted]
+        missing = sorted(set(wanted) - {item.offer_id for item in selected})
+        if missing:
+            print(f"Nie ma ofert: {', '.join(missing)}.", file=context.stderr)
+            return EXIT_USAGE
+        if not selected:
+            print(
+                "Baza nie ma ofert — uruchom najpierw `collect`.",
+                file=context.stderr,
+            )
+            return EXIT_USAGE
+
+        series_by_offer = {}
+        for offer in selected:
+            snapshots = storage.get_series(conn, offer.offer_id)
+            source = snapshots[0].source if snapshots else "api"
+            series = analytics.build_series(
+                snapshots, offer_id=offer.offer_id, metric=args.metric, source=source
+            )
+            series_by_offer[offer.offer_id] = (offer, series)
+
+        now = _now()
+        built = report.build_report(
+            conn,
+            series_by_offer=series_by_offer,
+            env=context.config.env,
+            ranges=tuple(args.ranges) if args.ranges else report.DEFAULT_RANGES,
+            metric=args.metric,
+            generator=_build_generator(context.config, no_ai=args.no_ai),
+            now=now,
+        )
+        target = report.write_report(built, args.out)
+    finally:
+        conn.close()
+
+    cards = sum(len(offer.cards) for offer in built.offers)
+    print(f"Zapisano raport: {target}", file=context.stdout)
+    print(
+        f"  ofert: {len(built.offers)}, sekcji: {cards}, "
+        f"badge: {built.env_label}, dane syntetyczne: {'tak' if built.is_synthetic else 'nie'}",
+        file=context.stdout,
+    )
     return EXIT_OK
 
 
