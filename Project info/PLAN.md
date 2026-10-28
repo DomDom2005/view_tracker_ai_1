@@ -23,7 +23,7 @@
 | 2    | Autoryzacja OAuth                              | L       | 1         | [x]    |
 | 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [x]    |
 | 4    | Kolektor i podstawowe CLI                      | M       | 1         | [x]    |
-| 5    | Analityka                                      | L       | 2         | [ ]    |
+| 5    | Analityka                                      | L       | 2         | [x]    |
 | 6    | Dane demo i wykresy                            | M       | 2         | [ ]    |
 | 7    | Moduł AI                                       | M       | 2         | [ ]    |
 | 8    | Raport HTML                                    | M       | 2         | [ ]    |
@@ -186,11 +186,11 @@ python -m view_tracker_ai_1.cli --help
 **Zależy od:** 4 · **Czyta:** SPEC §4.2, §6 FR-4
 
 **Zadania**
-- [ ] `analytics.py` jako **funkcje czyste** (bez I/O i bez czasu systemowego w środku): wybór przedziału (`24h`, `7d`, `30d`, `90d`, `all`), delty, wykrywanie anomalii `counter_decrease`, agregacja dzienna w `Europe/Warsaw`, `coverage`, trend (OLS, progi jako stałe), struktura `SeriesSummary`.
-- [ ] Spadek licznika: do przyrostu wlicz 0, zwiększ licznik anomalii, **nigdy ujemnych przyrostów**.
-- [ ] Przy < 3 punktach etykieta trendu `brak danych`.
-- [ ] Testy z SPEC §12: seria rosnąca, spadek licznika, luki i `coverage`, agregacja dzienna przez zmianę czasu (**2026-10-25, doba 25-godzinna**), cztery etykiety trendu. Dodaj test na serię z samych zer (zero to poprawna wartość).
-- [ ] Poprawka zaległa z etapu 4: `tests/test_cli.py::test_config_error_maps_to_exit_one` zgłasza `ResourceWarning: unclosed database` — ścieżka błędu w CLI zostawia otwarte połączenie SQLite. Zamknąć połączenie i pokryć to testem.
+- [x] `analytics.py` jako **funkcje czyste** (bez I/O i bez czasu systemowego w środku): wybór przedziału (`24h`, `7d`, `30d`, `90d`, `all`), delty, wykrywanie anomalii `counter_decrease`, agregacja dzienna w `Europe/Warsaw`, `coverage`, trend (OLS, progi jako stałe), struktura `SeriesSummary`.
+- [x] Spadek licznika: do przyrostu wlicz 0, zwiększ licznik anomalii, **nigdy ujemnych przyrostów**.
+- [x] Przy < 3 punktach etykieta trendu `brak danych`.
+- [x] Testy z SPEC §12: seria rosnąca, spadek licznika, luki i `coverage`, agregacja dzienna przez zmianę czasu (**2026-10-25, doba 25-godzinna**), cztery etykiety trendu. Dodaj test na serię z samych zer (zero to poprawna wartość).
+- [x] Poprawka zaległa z etapu 4: `ResourceWarning: unclosed database`. Diagnoza z etapu 4 była niepełna — winowajcą nie był sam `test_config_error_maps_to_exit_one` (ostrzeżenie trafiało tam przez GC), a `cli._open_db`: wyjątek z `init_db` (np. niezgodna wersja schematu) zostawiał otwarte połączenie, bo `finally` w komendzie już się nie wykonywał. `_open_db` zamyka teraz połączenie przy błędzie, a zachowanie pokrywa `test_open_db_closes_the_connection_when_init_fails`.
 
 **Bramka**
 ```bash
