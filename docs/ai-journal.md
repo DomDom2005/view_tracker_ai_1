@@ -17,6 +17,7 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-28 | Reinstalacja środowiska na świeżym klonie (urządzenie **HP_Pavilion**) | `git clone` do pustego workspace; `http.sslBackend=openssl` w lokalnym `.git/config` (schannel dawał `SEC_E_NO_CREDENTIALS`); venv przez `--without-pip` + globalny `pip --python` (padający `ensurepip`); `TMP`/`TEMP` przekierowane do `.tmp/`; zdiagnozowana przyczyna blokady `tempfile.mkdtemp()` — katalog z `mode=0o700` dostaje ACL odcinający zapis i listowanie **także twórcy**; obejście: `sitecustomize.py` maskujący tryb do `0o777` przez `PYTHONPATH`; `pip install -e .` z `--no-build-isolation` | Eksperyment na trzech trybach `os.mkdir`: domyślny i `0o777` → zapis i `listdir` OK, `0o700` → `PermissionError` w obu; `ruff check .` → All checks passed; `pytest -q` → 164 passed, 1 skipped | trafne, ale to **powtórka** problemu z etapu 0; nowe jest to, że obejście działa w `workspace-write`, bez pełnego dostępu — patrz „Notatki ze środowiska — HP_Pavilion” |
 | 2026-10-28 | Python 3.14.6 na polecenie człowieka (urządzenie **HP_Pavilion**) | Instalator z python.org (`python-3.14.6-amd64.exe`, SHA-256 zgodny ze stroną wydania) nie uruchomił się — `0x80070005` i brak logu; `uv python install 3.14.6` (build standalone, bez MSI i rejestru) zadziałał po wskazaniu cache i katalogu instalacji w `.tmp`, drzewo skopiowane do `%LOCALAPPDATA%\Programs\Python\Python314`; `.venv` odtworzony na 3.14.6, `pip install -r requirements-dev.txt` i `pip install -e .` bez obejść | Instalator dwa razy `-2147024891` (0x80070005), log nie powstał; `uv` padał na `Failed to create directory ...\uv\cache`; po przełączeniu sesji na pełny dostęp `ruff check .` → All checks passed, `pytest -q` → 164 passed, 1 skipped, bez `PYTHONPATH` i bez `--basetemp`; wcześniej nieusuwalne katalogi z `.tmp` dały się usunąć | trafne po dwóch obejściach; odmowy dotyczyły **uprawnień procesu potomnego**, nie ACL plików — pełny dostęp usuwa problem całkowicie (patrz aktualizacja w „Notatki ze środowiska — HP_Pavilion”) |
 | 2026-10-28 | Etap 5 — analityka | `analytics.py` jako funkcje czyste: `range_duration`/`select_points` (`24h`/`7d`/`30d`/`90d`/`all`), `deltas`/`positive_gains`/`gained_total`, `find_anomalies` (`counter_decrease` z ujemną deltą, poza przyrostami), `daily_gains` po dobie `Europe/Warsaw` z DST, `coverage`, `slope_per_day` (OLS) i `label_trend` z progiem 0,02 jako stałą, `summarize` → `SeriesSummary`, `build_series` (snapshoty → seria); przy < 3 punktach nachylenie 0.0 i etykieta `brak danych` | `ruff check .` czysty; `pytest -q` → 205 passed, 1 skipped; pokrycie `analytics.py` **100%**, całości 97%; test na dobę 25-godzinną 2026-10-25 (25 h w UTC kontra 24 h czasu ściennego) oraz na serię samych zer | trafne po korektach (patrz „Notatki z etapu 5”) |
+| 2026-10-28 | Etap 6 — dane demo i wykresy | `scripts/seed_demo_data.py` (deterministyczny `--seed` i `--end`, 5 ofert × 90 dni: wzrost, spadek, plateau, anomalia, luki; szum na **przyrostach**, odmowa zapisu do bazy z `source='api'`, zastępowanie poprzednich danych demo); `charts.py` (dwa panele, markery anomalii pod linią, znak wodny tylko w górnym panelu, komunikat zamiast pustej osi przy braku przyrostów, `ChartResult` z metadanymi); komenda `chart` w CLI z wstrzykiwalnym `_now()` i `ChartError` → kod 1; `analytics.to_local()` | `ruff check .` czysty; `pytest -q` → 229 passed, 1 skipped; pokrycie `charts.py` 97%, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie (seed → 10 047 snapshotów, `chart` → PNG); **kontrola wzrokowa** 9 wykresów (5 przedziałów + 4 wzorce) i po niej 8 poprawek | trafne po korektach wizualnych (patrz „Notatki z etapu 6”) |
 
 ## Notatki z etapu 0 (środowisko)
 
@@ -119,6 +120,33 @@ Ta sesja powstała na urządzeniu **HP_Pavilion** (konto `hp_pavilion\domin`), p
 4. `summarize` liczyło nachylenie również dla 2 punktów — teraz 0.0 plus `brak danych`.
 5. **Pułapka PEP 495:** odejmowanie dwóch dat w tej samej strefie daje czas ścienny (24 h), a nie rzeczywisty (25 h). Doba 2026-10-25 jest krótsza o godzinę tylko w UTC; test sprawdza oba wyniki i opisuje różnicę, żeby nikt tego nie „poprawił” z powrotem.
 6. **Poprawka zaległa z etapu 4** (`ResourceWarning: unclosed database`): diagnoza w PLAN-ie była niepełna. Ostrzeżenie pojawiało się przy `test_config_error_maps_to_exit_one`, ale winowajcą był `cli._open_db` — wyjątek z `init_db` zostawiał otwarte połączenie, bo `finally` w komendzie nigdy się nie wykonywał (przypisanie `conn = _open_db(...)` kończyło się wyjątkiem). `_open_db` zamyka teraz połączenie przy błędzie i ma osobny test.
+
+## Notatki z etapu 6 (decyzje i korekty)
+
+**Decyzje projektowe:**
+
+- **Szum na przyrostach, nie na poziomie.** Licznik wyświetleń narasta od przyrostów, więc generator dodaje szum do godzinniowego przyrostu i clampuje go do zera. Pierwsza wersja dodawała szum do poziomu i oferta „wzrostowa” miała **204 fałszywe anomalie** — wykres pokazywał 204 „spadki licznika” tam, gdzie ich nie było.
+- **`--end` jako parametr.** Deterministyczność wymaga ustalonego końca zakresu, więc skrypt przyjmuje `--end` (domyślnie bieżąca godzina UTC). Ten sam `--seed` i `--end` dają identyczne dane; test to sprawdza.
+- **Ponowne uruchomienie zastępuje dane demo** (kasuje wcześniejsze `synthetic` dla tych pięciu ofert), żeby zmiana `--end` nie sklejała dwóch różnych serii w jedną.
+- **`render_chart` liczy podsumowanie samo** (`analytics.summarize`) zamiast przyjmować je z zewnątrz — mniej okazji, by wykres i metadane opisywały różne zbiory punktów. `ChartResult` niesie `is_synthetic`, `n_points`, `coverage` i liczbę anomalii, więc testy nie muszą analizować pikseli.
+- **Markery anomalii pod linią** (`zorder=1`) i mniejsze: przy serii malejącej jest ich ponad 200 i rysowane na wierzchu zasłaniały cały przebieg poziomu.
+- **`ChartError` w `errors.py`** i mapowanie na kod 1 — brak danych w przedziale to błąd użycia, nie awaria.
+
+**Korekty po kontroli wzrokowej (8 poprawek, wszystkie z realnych obrazków):**
+
+1. Adnotacja pokrycia nachodziła na legendę („poziom licznikapokrycie danych…”) → przeniesiona do podtytułu w marginesie figury.
+2. Znak wodny „DANE SYNTETYCZNE” leżał na środku figury i zasłaniał słupki przyrostu → teraz tylko w górnym panelu, pod linią.
+3. Przy 90 dniach słupki o szerokości 0,8 doby rozpadły się na białe prążki → szerokość 1,0.
+4. Oferta „spadek”: 216 markerów tworzyło czerwoną wstęgę bez widocznej linii → markery mniejsze, półprzezroczyste, pod linią.
+5. Oferta „plateau” i „spadek”: panel przyrostów miał sam zera i oś od −0,05 do 0,05 (wyglądało jak błąd) → komunikat „brak dodatnich przyrostów w tym przedziale”.
+6. Legenda wymieniała „spadek licznika” przed „poziomem licznika” → kolejność rysowania poprawiona.
+7. Wykres 24 h miał pokrycie 50%, bo dane demo kończyły się o 00:00, a „teraz” było 13:00 → domyślny koniec seeda to bieżąca godzina.
+8. `matplotlib` nie może założyć cache w `%LOCALAPPDATA%\matplotlib` (procesy potomne nie mają tam prawa tworzenia katalogów) i zakładał katalogi `matplotlib-*` w katalogu repo. Cache ustawiony w `tests/conftest.py` (`MPLCONFIGDIR`), a wzorzec dopisany do `.gitignore`. **Uwaga dla człowieka:** przy ręcznych uruchomieniach warto ustawić `MPLCONFIGDIR` samemu, bo inaczej katalog-śmieć pojawi się w repo (jest ignorowany przez git, ale niepotrzebny). Ten sam problem środowiskowy co w „Notatki ze środowiska — HP_Pavilion”.
+
+**Korekty techniczne:**
+
+- Import modułu skryptu w testach (`importlib.util.spec_from_file_location`) wywalał `AttributeError: 'NoneType' object has no attribute '__dict__'` — `dataclasses` ze `slots=True` szukają modułu w `sys.modules`; trzeba go tam zarejestrować przed `exec_module`.
+- Próba dopisania testów przez `Add-Content` w PowerShell zapisała tekst w kodowaniu ANSI i uszkodziła UTF-8 w `tests/test_cli.py`; podobnie `Get-Content`/`Set-Content` podwójnie zakodowały `PLAN.md`. Oba pliki cofnięte i zmienione narzędziem do edycji. Wniosek na przyszłość: w tym środowisku nie przepisywać plików repo przez przekierowania powłoki.
 
 ## Odstępstwa od SPEC
 

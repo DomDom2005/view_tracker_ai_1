@@ -24,7 +24,7 @@
 | 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [x]    |
 | 4    | Kolektor i podstawowe CLI                      | M       | 1         | [x]    |
 | 5    | Analityka                                      | L       | 2         | [x]    |
-| 6    | Dane demo i wykresy                            | M       | 2         | [ ]    |
+| 6    | Dane demo i wykresy                            | M       | 2         | [x]    |
 | 7    | Moduł AI                                       | M       | 2         | [ ]    |
 | 8    | Raport HTML                                    | M       | 2         | [ ]    |
 | 9    | Zmiana ceny przez API (opcjonalny, decyzja D1) | M       | 3         | [ ]    |
@@ -209,11 +209,11 @@ ruff check . && pytest -q tests/test_analytics.py --cov=src/view_tracker_ai_1
 **Zależy od:** 5 · **Czyta:** SPEC §6 FR-5, FR-8, §11
 
 **Zadania**
-- [ ] `scripts/seed_demo_data.py`: deterministyczny (`--seed`), kilka ofert, 90 dni snapshotów godzinowych. Wzorce: wzrost, spadek, plateau, oferta z anomalią (spadek licznika), oferta z lukami w danych. Zapis **tylko** do osobnej bazy (domyślnie `data/demo.db`) z `source='synthetic'`. Skrypt odmawia zapisu do bazy zawierającej rekordy `api`.
-- [ ] `charts.py`: dwa panele (poziom licznika + dzienny przyrost), markery anomalii, opisy osi po polsku, adnotacja pokrycia, napis **„DANE SYNTETYCZNE”** dla `source='synthetic'`. Backend `Agg`. Zwraca ścieżkę i metadane (`is_synthetic`, `n_points`).
-- [ ] CLI: komenda `chart --offer ID --range ... [--metric ...] --out FILE.png`.
-- [ ] Testy: plik powstaje, `is_synthetic` ustawione, odmowa zapisu seeda do bazy z danymi `api`.
-- [ ] **Kontrola wzrokowa:** wygeneruj wykresy dla każdego przedziału z danych demo i obejrzyj je (narzędziem do podglądu obrazów). Sprawdź czytelność polskich znaków, nakładanie się opisów, obecność znaku wodnego.
+- [x] `scripts/seed_demo_data.py`: deterministyczny (`--seed`), kilka ofert, 90 dni snapshotów godzinowych. Wzorce: wzrost, spadek, plateau, oferta z anomalią (spadek licznika), oferta z lukami w danych. Zapis **tylko** do osobnej bazy (domyślnie `data/demo.db`) z `source='synthetic'`. Skrypt odmawia zapisu do bazy zawierającej rekordy `api`.
+- [x] `charts.py`: dwa panele (poziom licznika + dzienny przyrost), markery anomalii, opisy osi po polsku, adnotacja pokrycia, napis **„DANE SYNTETYCZNE”** dla `source='synthetic'`. Backend `Agg`. Zwraca ścieżkę i metadane (`is_synthetic`, `n_points`).
+- [x] CLI: komenda `chart --offer ID --range ... [--metric ...] --out FILE.png`.
+- [x] Testy: plik powstaje, `is_synthetic` ustawione, odmowa zapisu seeda do bazy z danymi `api`.
+- [x] **Kontrola wzrokowa:** wygeneruj wykresy dla każdego przedziału z danych demo i obejrzyj je (narzędziem do podglądu obrazów). Sprawdź czytelność polskich znaków, nakładanie się opisów, obecność znaku wodnego. Wykryte problemy i poprawki: patrz „Notatki z etapu 6” w `docs/ai-journal.md`.
 
 **Bramka**
 ```bash
