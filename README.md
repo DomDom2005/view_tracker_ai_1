@@ -226,7 +226,10 @@ Czas pełnego przebiegu: ~11 s.
 - `.gitignore`: `.env*`, `tokens*.json`, `data/`, `reports/`, `*.db`, `*.pem`, `*.key`.
 - Zapisy do API: domyślnie tylko sandbox; produkcja wymaga jawnego `ALLOW_PROD_WRITES=1`.
   (Etap 9 z zapisem jest odłożony, więc aplikacja dziś tylko czyta.)
-- Opcjonalny skan sekretów: `gitleaks detect` w pre-commit.
+- **Skan sekretów:** `gitleaks git --config .gitleaks.toml` — w historii i w drzewie roboczym
+  zero trafień. Konfiguracja dopuszcza tylko zmyślony JWT w teście redakcji logów
+  (`tests/test_config.py`) i katalogi lokalne (`.venv/`, `.tmp/`, `data/`, `reports/`).
+  Można podpiąć w pre-commit: `gitleaks git --config .gitleaks.toml --pre-commit`.
 
 ## 9. Dziennik AI
 

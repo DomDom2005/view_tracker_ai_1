@@ -29,7 +29,7 @@
 | 8    | Raport HTML                                    | M       | 2         | [x]    |
 | 9    | Zmiana ceny przez API (opcjonalny, decyzja D1) | M       | 3         | [-]    |
 | 10   | Dokumentacja                                   | M       | —         | [x]    |
-| 11   | Domknięcie i kontrola jakości                  | S       | —         | [ ]    |
+| 11   | Domknięcie i kontrola jakości                  | S       | —         | [x]    |
 
 Zależności: 0 → 1 → (2, 3) → 4 → 5 → 6 → (7, 8) → 9 → 10 → 11. Etapy 2 i 3 możesz zamienić miejscami, ale 4 wymaga obu.
 
@@ -337,12 +337,12 @@ python -m view_tracker_ai_1.cli act price --offer 123 --amount 49.99   # dry-run
 **Zależy od:** 10
 
 **Zadania**
-- [ ] **Czyste środowisko:** nowe venv, `pip install -r requirements.txt -r requirements-dev.txt`, pełne `pytest --cov` i `ruff check .`.
-- [ ] **Skan sekretów:** `gitleaks` (jeśli dostępny) albo przeszukanie repo i historii commitów (`git log -p`) pod kątem wzorców tokenów, kluczy i `client_secret`. Sprawdź też, że `.env`, `data/`, `reports/`, pliki tokenów są w `.gitignore` i nie są śledzone (`git ls-files`).
-- [ ] Przejrzyj wszystkie `TODO(verify)`: rozwiąż albo opisz jako ograniczenie w README.
-- [ ] Przejdź listę **Definition of Done z SPEC §15** punkt po punkcie i zapisz wynik.
-- [ ] Zaktualizuj tabelę statusu w tym pliku.
-- [ ] Końcowy raport do człowieka: co działa, odstępstwa od SPEC, znane ograniczenia (semantyka licznika, brak ruchu w Sandboxie), lista zadań człowieka z SPEC §16 (rejestracja aplikacji, zrzuty ekranu, test na żywym API i modelu, decyzja D1, refleksja).
+- [x] **Czyste środowisko:** nowe venv, `pip install -r requirements.txt -r requirements-dev.txt`, pełne `pytest --cov` i `ruff check .`. Wykonane na `.tmp/venv-clean` (Python 3.14.6): 280 passed, 1 skipped, `ruff` czysty. Venv usunięty po teście.
+- [x] **Skan sekretów:** `gitleaks` 8.30.1 (`git` po 29 commitach + `dir` po drzewie roboczym) — **zero trafień** po dodaniu `.gitleaks.toml`. Bez konfiguracji skan zgłaszał 2 fałszywe alarmy w historii (zmyślony JWT w teście redakcji logów) i 7 w drzewie (ten sam JWT + pliki testowe `numpy` w `.venv`). Sprawdzone też: `.env`, `data/`, `reports/`, `tokens*.json` są w `.gitignore` i **nie są śledzone** (`git ls-files` pusty dla tych wzorców).
+- [x] Przejrzyj wszystkie `TODO(verify)`: rozwiąż albo opisz jako ograniczenie w README. Cztery otwarte punkty (miejsce `scope` w device flow, host `device` na sandboxie, `Retry-After`, `count` vs `totalCount`) są **nierozwiązywalne bez konta sandbox** — opisane w README §10 pkt 5 i w `docs/api-notes.md` §8.
+- [x] Przejdź listę **Definition of Done z SPEC §15** punkt po punkcie i zapisz wynik — tabela w `docs/ai-journal.md` („Notatki z etapu 11”).
+- [x] Zaktualizuj tabelę statusu w tym pliku.
+- [x] Końcowy raport do człowieka: co działa, odstępstwa od SPEC, znane ograniczenia (semantyka licznika, brak ruchu w Sandboxie), lista zadań człowieka z SPEC §16 (rejestracja aplikacji, zrzuty ekranu, test na żywym API i modelu, decyzja D1, refleksja).
 
 **Bramka:** wszystkie punkty DoD odhaczone. Jeśli któryś nie jest spełniony, napisz który i dlaczego, zamiast go zaznaczać.
 

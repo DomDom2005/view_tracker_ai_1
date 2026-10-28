@@ -20,6 +20,7 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-28 | Etap 6 — dane demo i wykresy | `scripts/seed_demo_data.py` (deterministyczny `--seed` i `--end`, 5 ofert × 90 dni: wzrost, spadek, plateau, anomalia, luki; szum na **przyrostach**, odmowa zapisu do bazy z `source='api'`, zastępowanie poprzednich danych demo); `charts.py` (dwa panele, markery anomalii pod linią, znak wodny tylko w górnym panelu, komunikat zamiast pustej osi przy braku przyrostów, `ChartResult` z metadanymi); komenda `chart` w CLI z wstrzykiwalnym `_now()` i `ChartError` → kod 1; `analytics.to_local()` | `ruff check .` czysty; `pytest -q` → 229 passed, 1 skipped; pokrycie `charts.py` 97%, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie (seed → 10 047 snapshotów, `chart` → PNG); **kontrola wzrokowa** 9 wykresów (5 przedziałów + 4 wzorce) i po niej 8 poprawek | trafne po korektach wizualnych (patrz „Notatki z etapu 6”) |
 | 2026-10-28 | Etap 7 — moduł AI | `ai_comment.py`: protokół `CommentGenerator`, `FakeCommentGenerator` (deterministyczny, jawnie „komentarz bez AI”), `AnthropicCommentGenerator` (klient leniwie, `client_factory` do testów), `gate_message` (`n_points < 6` lub `coverage < 0.3`), `build_prompt` z blokiem `<dane>` i neutralizacją `<`/`>` w nazwie oferty, `input_hash` (sha256 z agregatów), `clean_comment` (markdown + 700 znaków), `generate_comment` (bramka → cache → model → fallback); `Config.require_llm()`; CLI `comment --offer --range [--metric] [--no-ai]` | `ruff check .` czysty; `pytest -q` → 262 passed, 1 skipped; pokrycie `ai_comment.py` **100%**, `cli.py` i `config.py` 98%, całości 97%; testy: brak wywołania przy bramce, cache hit bez drugiego wołania, próba wstrzyknięcia `</dane>`, brak klucza API w komunikatach błędów, leniwe SDK | trafne po korektach (patrz „Notatki z etapu 7”); **nie testowane na żywym modelu** |
 | 2026-10-28 | Etap 10 — dokumentacja; decyzja D1 (etap 9 odłożony) | `README.md` z 10 sekcjami ze SPEC §14 (cel; endpointy + scope z `api-notes.md`; diagram Mermaid; instalacja; tabela zmiennych env; przykłady z **rzeczywistym** wyjściem; błędy/limity; testy; bezpieczeństwo; dziennik AI; ograniczenia); `PLAN.md`: etap 9 → `[-]` z uzasadnieniem, etap 10 → `[x]`; poprawione `docs/screenshots/README.md` i `docs/manual-sandbox-checklist.md`, bo obiecywały komendę `act price` | Bramka uruchomiona dosłownie: `^## ` w README = **10**; wszystkie 6 linków wewnętrznych wskazują istniejące pliki; każda komenda z README wykonana (seed → 10 047 snapshotów, `chart` → 2160 punktów / 100% pokrycia / 1 anomalia, `comment`, `report` → 5 ofert / 10 sekcji, `offers list`, `auth status`); w README brak wartości sekretów; `ruff check .` i `pytest -q` bez zmian (280 passed, 1 skipped) | trafne po dwóch korektach dokumentów |
+| 2026-10-28 | Etap 11 — domknięcie i QA | Instalacja `gitleaks` 8.30.1 (binarny release z GitHub → `%LOCALAPPDATA%\Programs\gitleaks`), skan historii (`gitleaks git`, 29 commitów) i drzewa (`gitleaks dir`); `.gitleaks.toml` z wyjątkami na zmyślony JWT w teście redakcji i katalogi lokalne; test czystego środowiska (nowy venv na Pythonie 3.14.6 → instalacja z `requirements*.txt` → pełne `pytest`); przejście Definition of Done ze SPEC §15 punkt po punkcie | Historia: 2 fałszywe alarmy przed konfiguracją → **0 po**; drzewo: 7 → **0**; czysty venv: `pip install` OK, 280 passed, 1 skipped, `ruff` czysty; `git ls-files` nie zawiera `.env`, `*.db`, `tokens*`; `.env.example` bez wartości; README 10/10 sekcji; dziennik: 15 wpisów, 10 sekcji korekt | trafne; **1 punkt DoD** (TODO(verify)) spełniony przez opisanie, nie przez rozwiązanie — uzasadnienie w „Notatki z etapu 11” |
 | 2026-10-28 | Etap 8 — raport HTML (koniec fazy 2) | `report.py`: `build_report` (serie → kafle: wykres base64 + tabela FR-4 + komentarz), szablon Jinja2 z autoescape, badge SANDBOX/PROD/DEMO, ostrzeżenie o danych syntetycznych i o semantyce licznika, `write_report` (UTF-8), `series_for_offer`; `charts.render_png` (PNG do pamięci, wspólna figura z `render_chart`); CLI `report --range --range ... [--offer] [--metric] [--no-ai] --out` z lokalnym importem matplotliba | `ruff check .` czysty; `pytest -q` → 280 passed, 1 skipped; pokrycie `report.py` **100%**, `charts.py` **100%**, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie: raport 5 ofert / 5 sekcji, 0 odwołań `http(s)://`, 10 osadzonych PNG (sprawdzone: base64 dekoduje się do prawidłowych plików PNG) | trafne po korektach (patrz „Notatki z etapu 8”) |
 
 ## Notatki z etapu 0 (środowisko)
@@ -226,6 +227,47 @@ a to gorsze niż brak dokumentacji.
 **Czego nie zweryfikowałem:** `auth login` i `collect` na prawdziwym koncie nie były uruchamiane —
 w repo nie ma poświadczeń i testy nie mogą wychodzić do sieci. README opisuje je jako krok
 człowieka (SPEC §16), a nie jako coś „sprawdzonego”.
+
+## Notatki z etapu 11 (domknięcie i Definition of Done)
+
+**Czyste środowisko.** Nowy venv na Pythonie 3.14.6, wyłącznie z `requirements.txt`
+i `requirements-dev.txt` (bez `pip install -e .`, bez wcześniejszych zależności):
+
+```
+pip install -r requirements.txt -r requirements-dev.txt   → OK
+pytest -q                                                 → 280 passed, 1 skipped
+ruff check .                                              → All checks passed
+```
+
+Test przetrwał, bo `pyproject.toml` ma `pythonpath = ["src"]` — testy nie potrzebują instalacji
+pakietu. Venv usunięty po przebiegu, żeby nie zajmował miejsca.
+
+**Skan sekretów.** `gitleaks` 8.30.1, binarny release z GitHuba (winget na tej maszynie nie ma).
+Bez konfiguracji skan zgłosił:
+
+- w historii 2 trafienia `jwt` — oba to **zmyślony token** w `tests/test_config.py`, użyty
+  w teście filtra redakcji logów (`eyJhbGciOiJIUzI1NiJ9.…signature123`); to nie sekret;
+- w drzewie roboczym 7 trafień, z czego 6 to pliki testowe `numpy` w `.venv/`, a 1 ten sam JWT.
+
+Dodany `.gitleaks.toml` (reguły domyślne + allowlista) z uzasadnieniem każdego wyjątku. Po nim:
+**0 trafień** w historii (29 commitów) i w drzewie. Konfiguracja jest w repo, więc skan jest
+powtarzalny.
+
+**Definition of Done (SPEC §15):**
+
+| Punkt | Wynik |
+|---|---|
+| `pip install -r requirements.txt` + `pytest` na czystym środowisku (Python 3.11+) | ✅ nowy venv na 3.14.6: 280 passed, 1 skipped |
+| `ruff check` bez błędów | ✅ All checks passed |
+| README: wszystkie 10 sekcji, bez wartości sekretów | ✅ 10/10 `##`; w tabeli env tylko nazwy i przykłady-placeholdery; gitleaks 0 trafień |
+| `docs/ai-journal.md`: rzeczywiste wpisy, w tym korekty | ✅ 15 wpisów, 10 sekcji „Korekty…” |
+| W repo i w historii commitów brak sekretów | ✅ `gitleaks git` 0/29 commitów, `gitleaks dir` 0; `git ls-files` bez `.env`, `*.db`, `tokens*.json` |
+| Wszystkie `TODO(verify)` rozwiązane albo opisane w README jako ograniczenie | ✅ **opisane** (README §10 pkt 5, `docs/api-notes.md` §8) — nie do rozwiązania bez konta sandbox |
+| `docs/manual-sandbox-checklist.md` opisuje kroki dla człowieka | ✅ rejestracja aplikacji, `.env`, `auth login`, `collect`, generowanie ruchu, `report`, lista `TODO(verify)`, zrzuty |
+
+**Czego nie da się zamknąć agentowi i dlaczego:** rejestracja aplikacji, konto sandbox, pierwszy
+`auth login`/`collect`, zrzuty ekranu, test na żywym modelu i „Refleksja” w dzienniku wymagają
+człowieka (SPEC §16). Dla tych punktów DoD nie zgłasza się „zrobione”, tylko wskazuje właściciela.
 
 ## Odstępstwa od SPEC
 

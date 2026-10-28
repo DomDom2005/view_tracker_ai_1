@@ -1,0 +1,28 @@
+# Konfiguracja skanu sekretów (gitleaks) — etap 11.
+#
+# Reguły zostają domyślne. Wyjątki obejmują wyłącznie:
+#  1. fałszywy token JWT w tests/test_config.py — jest tam po to, żeby sprawdzić, że filtr
+#     redakcji logów go zamaskuje; to nie sekret, tylko wzorzec testowy,
+#  2. katalogi lokalne, które nie są częścią repo: środowisko `.venv/`, scratch `.tmp/`,
+#     dane `data/` i artefakty `reports/`.
+#
+# Każdy nowy wpis na tej liście musi mieć uzasadnienie — inaczej skan przestaje cokolwiek
+# znaczyć.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Zmyślony JWT w teście redakcji logów"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signature123''',
+]
+
+[[allowlists]]
+description = "Katalogi lokalne: środowisko, scratch, dane demo i raporty"
+paths = [
+  '''(^|[\\/])\.venv[\\/]''',
+  '''(^|[\\/])\.tmp[\\/]''',
+  '''(^|[\\/])data[\\/]''',
+  '''(^|[\\/])reports[\\/]''',
+]
