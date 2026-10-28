@@ -27,8 +27,8 @@
 | 6    | Dane demo i wykresy                            | M       | 2         | [x]    |
 | 7    | Moduł AI                                       | M       | 2         | [x]    |
 | 8    | Raport HTML                                    | M       | 2         | [x]    |
-| 9    | Zmiana ceny przez API (opcjonalny, decyzja D1) | M       | 3         | [ ]    |
-| 10   | Dokumentacja                                   | M       | —         | [ ]    |
+| 9    | Zmiana ceny przez API (opcjonalny, decyzja D1) | M       | 3         | [-]    |
+| 10   | Dokumentacja                                   | M       | —         | [x]    |
 | 11   | Domknięcie i kontrola jakości                  | S       | —         | [ ]    |
 
 Zależności: 0 → 1 → (2, 3) → 4 → 5 → 6 → (7, 8) → 9 → 10 → 11. Etapy 2 i 3 możesz zamienić miejscami, ale 4 wymaga obu.
@@ -283,6 +283,11 @@ ruff check . && pytest -q --cov=src/view_tracker_ai_1
 
 Jeśli D1 = „nie”: oznacz etap `[-]`, zapisz decyzję w dzienniku AI i przejdź do etapu 10.
 
+**Status: `[-]` odłożony (2026-10-28, decyzja właściciela projektu).** Projekt pozostaje read-only —
+`actions.py` i komenda `act price` nie są implementowane. Endpoint i format żądania są udokumentowane
+w `docs/api-notes.md` §6, więc powrót do etapu nie wymaga ponownego researchu. Uzasadnienie i skutki:
+`docs/ai-journal.md`, „Notatki z etapu 10”.
+
 **Zadania**
 - [ ] `actions.py`: budowa żądania zmiany ceny **dokładnie wg `api-notes.md`** (wybór `PATCH` albo komend zmiany ceny wynika z dokumentacji, nie z domysłu).
 - [ ] **Dry-run domyślnie**: pokazuje, co zostałoby wysłane (bez sekretów). Dopiero `--apply` wysyła żądanie.
@@ -309,13 +314,13 @@ python -m view_tracker_ai_1.cli act price --offer 123 --amount 49.99   # dry-run
 **Zależy od:** 4–9 · **Czyta:** SPEC §14, §16
 
 **Zadania**
-- [ ] `README.md` po polsku, **10 sekcji w kolejności z SPEC §14** (cel; funkcjonalność/endpointy/scope; schemat przepływu; uruchomienie; przykłady; błędy i limity; testy; bezpieczeństwo; dziennik AI; ograniczenia). Tabela „funkcja → endpoint → scope” z wartości zweryfikowanych w `api-notes.md` (niezweryfikowane oznacz wprost).
-- [ ] Tabela zmiennych środowiskowych (nazwa, do czego, wymagana?, przykład bez prawdziwej wartości).
-- [ ] `docs/data-flow.md` z diagramem Mermaid (SPEC §5).
-- [ ] `docs/manual-sandbox-checklist.md`: kroki dla człowieka z dokładnymi komendami (rejestracja aplikacji, `.env`, `auth login`, `collect`, generowanie ruchu, `report`).
-- [ ] `docs/screenshots/README.md`: lista zrzutów do wykonania (nazwa pliku, komenda, co ma być widoczne, **co zamaskować**: tokeny, identyfikatory konta, dane osobowe).
-- [ ] Sekcja „Przykłady” w README: komendy odtwarzające input → output, z miejscami na zrzuty.
-- [ ] `docs/ai-journal.md` uzupełniony o wszystkie etapy. Pole „Refleksja” zostaw człowiekowi.
+- [x] `README.md` po polsku, **10 sekcji w kolejności z SPEC §14** (cel; funkcjonalność/endpointy/scope; schemat przepływu; uruchomienie; przykłady; błędy i limity; testy; bezpieczeństwo; dziennik AI; ograniczenia). Tabela „funkcja → endpoint → scope” z wartości zweryfikowanych w `api-notes.md` (niezweryfikowane oznacz wprost).
+- [x] Tabela zmiennych środowiskowych (nazwa, do czego, wymagana?, przykład bez prawdziwej wartości).
+- [x] `docs/data-flow.md` z diagramem Mermaid (SPEC §5).
+- [x] `docs/manual-sandbox-checklist.md`: kroki dla człowieka z dokładnymi komendami (rejestracja aplikacji, `.env`, `auth login`, `collect`, generowanie ruchu, `report`).
+- [x] `docs/screenshots/README.md`: lista zrzutów do wykonania (nazwa pliku, komenda, co ma być widoczne, **co zamaskować**: tokeny, identyfikatory konta, dane osobowe).
+- [x] Sekcja „Przykłady” w README: komendy odtwarzające input → output, z miejscami na zrzuty.
+- [x] `docs/ai-journal.md` uzupełniony o wszystkie etapy. Pole „Refleksja” zostaw człowiekowi.
 
 **Bramka**
 - `grep -c '^## ' README.md` pokazuje wszystkie 10 sekcji.

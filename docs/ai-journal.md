@@ -19,6 +19,7 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-28 | Etap 5 — analityka | `analytics.py` jako funkcje czyste: `range_duration`/`select_points` (`24h`/`7d`/`30d`/`90d`/`all`), `deltas`/`positive_gains`/`gained_total`, `find_anomalies` (`counter_decrease` z ujemną deltą, poza przyrostami), `daily_gains` po dobie `Europe/Warsaw` z DST, `coverage`, `slope_per_day` (OLS) i `label_trend` z progiem 0,02 jako stałą, `summarize` → `SeriesSummary`, `build_series` (snapshoty → seria); przy < 3 punktach nachylenie 0.0 i etykieta `brak danych` | `ruff check .` czysty; `pytest -q` → 205 passed, 1 skipped; pokrycie `analytics.py` **100%**, całości 97%; test na dobę 25-godzinną 2026-10-25 (25 h w UTC kontra 24 h czasu ściennego) oraz na serię samych zer | trafne po korektach (patrz „Notatki z etapu 5”) |
 | 2026-10-28 | Etap 6 — dane demo i wykresy | `scripts/seed_demo_data.py` (deterministyczny `--seed` i `--end`, 5 ofert × 90 dni: wzrost, spadek, plateau, anomalia, luki; szum na **przyrostach**, odmowa zapisu do bazy z `source='api'`, zastępowanie poprzednich danych demo); `charts.py` (dwa panele, markery anomalii pod linią, znak wodny tylko w górnym panelu, komunikat zamiast pustej osi przy braku przyrostów, `ChartResult` z metadanymi); komenda `chart` w CLI z wstrzykiwalnym `_now()` i `ChartError` → kod 1; `analytics.to_local()` | `ruff check .` czysty; `pytest -q` → 229 passed, 1 skipped; pokrycie `charts.py` 97%, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie (seed → 10 047 snapshotów, `chart` → PNG); **kontrola wzrokowa** 9 wykresów (5 przedziałów + 4 wzorce) i po niej 8 poprawek | trafne po korektach wizualnych (patrz „Notatki z etapu 6”) |
 | 2026-10-28 | Etap 7 — moduł AI | `ai_comment.py`: protokół `CommentGenerator`, `FakeCommentGenerator` (deterministyczny, jawnie „komentarz bez AI”), `AnthropicCommentGenerator` (klient leniwie, `client_factory` do testów), `gate_message` (`n_points < 6` lub `coverage < 0.3`), `build_prompt` z blokiem `<dane>` i neutralizacją `<`/`>` w nazwie oferty, `input_hash` (sha256 z agregatów), `clean_comment` (markdown + 700 znaków), `generate_comment` (bramka → cache → model → fallback); `Config.require_llm()`; CLI `comment --offer --range [--metric] [--no-ai]` | `ruff check .` czysty; `pytest -q` → 262 passed, 1 skipped; pokrycie `ai_comment.py` **100%**, `cli.py` i `config.py` 98%, całości 97%; testy: brak wywołania przy bramce, cache hit bez drugiego wołania, próba wstrzyknięcia `</dane>`, brak klucza API w komunikatach błędów, leniwe SDK | trafne po korektach (patrz „Notatki z etapu 7”); **nie testowane na żywym modelu** |
+| 2026-10-28 | Etap 10 — dokumentacja; decyzja D1 (etap 9 odłożony) | `README.md` z 10 sekcjami ze SPEC §14 (cel; endpointy + scope z `api-notes.md`; diagram Mermaid; instalacja; tabela zmiennych env; przykłady z **rzeczywistym** wyjściem; błędy/limity; testy; bezpieczeństwo; dziennik AI; ograniczenia); `PLAN.md`: etap 9 → `[-]` z uzasadnieniem, etap 10 → `[x]`; poprawione `docs/screenshots/README.md` i `docs/manual-sandbox-checklist.md`, bo obiecywały komendę `act price` | Bramka uruchomiona dosłownie: `^## ` w README = **10**; wszystkie 6 linków wewnętrznych wskazują istniejące pliki; każda komenda z README wykonana (seed → 10 047 snapshotów, `chart` → 2160 punktów / 100% pokrycia / 1 anomalia, `comment`, `report` → 5 ofert / 10 sekcji, `offers list`, `auth status`); w README brak wartości sekretów; `ruff check .` i `pytest -q` bez zmian (280 passed, 1 skipped) | trafne po dwóch korektach dokumentów |
 | 2026-10-28 | Etap 8 — raport HTML (koniec fazy 2) | `report.py`: `build_report` (serie → kafle: wykres base64 + tabela FR-4 + komentarz), szablon Jinja2 z autoescape, badge SANDBOX/PROD/DEMO, ostrzeżenie o danych syntetycznych i o semantyce licznika, `write_report` (UTF-8), `series_for_offer`; `charts.render_png` (PNG do pamięci, wspólna figura z `render_chart`); CLI `report --range --range ... [--offer] [--metric] [--no-ai] --out` z lokalnym importem matplotliba | `ruff check .` czysty; `pytest -q` → 280 passed, 1 skipped; pokrycie `report.py` **100%**, `charts.py` **100%**, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie: raport 5 ofert / 5 sekcji, 0 odwołań `http(s)://`, 10 osadzonych PNG (sprawdzone: base64 dekoduje się do prawidłowych plików PNG) | trafne po korektach (patrz „Notatki z etapu 8”) |
 
 ## Notatki z etapu 0 (środowisko)
@@ -190,6 +191,41 @@ Ta sesja powstała na urządzeniu **HP_Pavilion** (konto `hp_pavilion\domin`), p
 4. Testy raportu wpadały w bramkę AI (48-godzinna seria w przedziale 7d to pokrycie 29%) — nie był to błąd kodu, tylko danych testowych; domyślny przedział w testach zmieniony na `24h`, a test bramki dostał osobny przypadek.
 
 **Faza 2 domknięta:** `seed_demo_data` → `chart` → `comment` → `report --range 30d --no-ai` daje jeden samodzielny plik HTML z wykresami, tabelą i komentarzem; pokrycie `report.py` i `charts.py` 100%, całości 97%. Prawdziwe konto sandbox i żywy model nadal należą do człowieka (SPEC §16).
+
+## Notatki z etapu 10 (decyzja D1 i korekty dokumentów)
+
+**Decyzja D1: etap 9 (zmiana ceny) odłożony.** Właściciel projektu zdecydował, że na razie
+zostajemy przy odczycie. Konsekwencje, żeby nie były niespodzianką:
+
+- `actions.py` i komenda `act price` **nie istnieją** — aplikacja jest read-only;
+- tabela `actions_log` została w schemacie (SPEC §7) i nie jest używana;
+- `ALLOW_PROD_WRITES` nadal jest w konfiguracji i nic nie robi, póki nie ma ścieżki zapisu;
+- powrót do etapu nie wymaga researchu: endpoint, ciało żądania i obsługa `422` są opisane
+  w `docs/api-notes.md` §6;
+- `PLAN.md` oznacza etap 9 jako `[-]`, a nie `[ ]`, żeby nikt nie pomylił „odłożony” z „zapomniany”.
+
+**Decyzje przy pisaniu README:**
+
+- Dokładnie **10 nagłówków `##`**, bo bramka liczy `grep -c '^## '`. Podsekcje są `###`, żeby nie
+  psuć licznika.
+- Tabela endpointów ma **jawną kolumnę statusu**: ✅ potwierdzone, ⚠️ potwierdzone ale
+  niezaimplementowane, a `TODO(verify)` są wypisane w README, nie schowane w `docs/`.
+- Przykłady zawierają **rzeczywiste wyjście** z przebiegu na danych demo (10 047 snapshotów,
+  2160 punktów, 5 ofert / 10 sekcji w raporcie), a nie wyobrażone.
+
+**Korekty (obydwie wymuszone odłożeniem etapu 9):**
+
+1. `docs/screenshots/README.md` obiecywał zrzuty `08-panel-przed-po.png` i `10-error-422.png`
+   z komendy `act price --apply`, której nie ma. Oznaczone jako nieaktualne, z notką kiedy wrócą.
+2. `docs/manual-sandbox-checklist.md` §5 pytała, czy zmiana ceny działa na sandboxie — punkt
+   przekreślony z odesłaniem do decyzji.
+
+Gdyby tego nie poprawić, dokumentacja obiecywałaby funkcję, której użytkownik nie znajdzie —
+a to gorsze niż brak dokumentacji.
+
+**Czego nie zweryfikowałem:** `auth login` i `collect` na prawdziwym koncie nie były uruchamiane —
+w repo nie ma poświadczeń i testy nie mogą wychodzić do sieci. README opisuje je jako krok
+człowieka (SPEC §16), a nie jako coś „sprawdzonego”.
 
 ## Odstępstwa od SPEC
 
