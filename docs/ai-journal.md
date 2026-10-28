@@ -18,6 +18,7 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-28 | Python 3.14.6 na polecenie człowieka (urządzenie **HP_Pavilion**) | Instalator z python.org (`python-3.14.6-amd64.exe`, SHA-256 zgodny ze stroną wydania) nie uruchomił się — `0x80070005` i brak logu; `uv python install 3.14.6` (build standalone, bez MSI i rejestru) zadziałał po wskazaniu cache i katalogu instalacji w `.tmp`, drzewo skopiowane do `%LOCALAPPDATA%\Programs\Python\Python314`; `.venv` odtworzony na 3.14.6, `pip install -r requirements-dev.txt` i `pip install -e .` bez obejść | Instalator dwa razy `-2147024891` (0x80070005), log nie powstał; `uv` padał na `Failed to create directory ...\uv\cache`; po przełączeniu sesji na pełny dostęp `ruff check .` → All checks passed, `pytest -q` → 164 passed, 1 skipped, bez `PYTHONPATH` i bez `--basetemp`; wcześniej nieusuwalne katalogi z `.tmp` dały się usunąć | trafne po dwóch obejściach; odmowy dotyczyły **uprawnień procesu potomnego**, nie ACL plików — pełny dostęp usuwa problem całkowicie (patrz aktualizacja w „Notatki ze środowiska — HP_Pavilion”) |
 | 2026-10-28 | Etap 5 — analityka | `analytics.py` jako funkcje czyste: `range_duration`/`select_points` (`24h`/`7d`/`30d`/`90d`/`all`), `deltas`/`positive_gains`/`gained_total`, `find_anomalies` (`counter_decrease` z ujemną deltą, poza przyrostami), `daily_gains` po dobie `Europe/Warsaw` z DST, `coverage`, `slope_per_day` (OLS) i `label_trend` z progiem 0,02 jako stałą, `summarize` → `SeriesSummary`, `build_series` (snapshoty → seria); przy < 3 punktach nachylenie 0.0 i etykieta `brak danych` | `ruff check .` czysty; `pytest -q` → 205 passed, 1 skipped; pokrycie `analytics.py` **100%**, całości 97%; test na dobę 25-godzinną 2026-10-25 (25 h w UTC kontra 24 h czasu ściennego) oraz na serię samych zer | trafne po korektach (patrz „Notatki z etapu 5”) |
 | 2026-10-28 | Etap 6 — dane demo i wykresy | `scripts/seed_demo_data.py` (deterministyczny `--seed` i `--end`, 5 ofert × 90 dni: wzrost, spadek, plateau, anomalia, luki; szum na **przyrostach**, odmowa zapisu do bazy z `source='api'`, zastępowanie poprzednich danych demo); `charts.py` (dwa panele, markery anomalii pod linią, znak wodny tylko w górnym panelu, komunikat zamiast pustej osi przy braku przyrostów, `ChartResult` z metadanymi); komenda `chart` w CLI z wstrzykiwalnym `_now()` i `ChartError` → kod 1; `analytics.to_local()` | `ruff check .` czysty; `pytest -q` → 229 passed, 1 skipped; pokrycie `charts.py` 97%, `cli.py` 98%, całości 97%; bramka z PLAN-u uruchomiona dosłownie (seed → 10 047 snapshotów, `chart` → PNG); **kontrola wzrokowa** 9 wykresów (5 przedziałów + 4 wzorce) i po niej 8 poprawek | trafne po korektach wizualnych (patrz „Notatki z etapu 6”) |
+| 2026-10-28 | Etap 7 — moduł AI | `ai_comment.py`: protokół `CommentGenerator`, `FakeCommentGenerator` (deterministyczny, jawnie „komentarz bez AI”), `AnthropicCommentGenerator` (klient leniwie, `client_factory` do testów), `gate_message` (`n_points < 6` lub `coverage < 0.3`), `build_prompt` z blokiem `<dane>` i neutralizacją `<`/`>` w nazwie oferty, `input_hash` (sha256 z agregatów), `clean_comment` (markdown + 700 znaków), `generate_comment` (bramka → cache → model → fallback); `Config.require_llm()`; CLI `comment --offer --range [--metric] [--no-ai]` | `ruff check .` czysty; `pytest -q` → 262 passed, 1 skipped; pokrycie `ai_comment.py` **100%**, `cli.py` i `config.py` 98%, całości 97%; testy: brak wywołania przy bramce, cache hit bez drugiego wołania, próba wstrzyknięcia `</dane>`, brak klucza API w komunikatach błędów, leniwe SDK | trafne po korektach (patrz „Notatki z etapu 7”); **nie testowane na żywym modelu** |
 
 ## Notatki z etapu 0 (środowisko)
 
@@ -147,6 +148,28 @@ Ta sesja powstała na urządzeniu **HP_Pavilion** (konto `hp_pavilion\domin`), p
 
 - Import modułu skryptu w testach (`importlib.util.spec_from_file_location`) wywalał `AttributeError: 'NoneType' object has no attribute '__dict__'` — `dataclasses` ze `slots=True` szukają modułu w `sys.modules`; trzeba go tam zarejestrować przed `exec_module`.
 - Próba dopisania testów przez `Add-Content` w PowerShell zapisała tekst w kodowaniu ANSI i uszkodziła UTF-8 w `tests/test_cli.py`; podobnie `Get-Content`/`Set-Content` podwójnie zakodowały `PLAN.md`. Oba pliki cofnięte i zmienione narzędziem do edycji. Wniosek na przyszłość: w tym środowisku nie przepisywać plików repo przez przekierowania powłoki.
+
+## Notatki z etapu 7 (decyzje i korekty)
+
+**Decyzje projektowe:**
+
+- **Bramka jest osobną funkcją i stoi przed cache.** Komunikat „Za mało danych…” nie trafia do bazy — nie ma czego cache’ować, a zmiana danych i tak go unieważni.
+- **`input_hash` liczony z agregatów** (`json.dumps(..., sort_keys=True)` → sha256), a nie z surowych snapshotów. Cache jest więc odporny na kolejność pól i nie trzyma w kluczu danych, których nie wysyłamy do modelu.
+- **Nazwa oferty jest neutralizowana.** Zwykłe wstawienie jej do promptu nie wystarcza: nazwa `</dane>\nIgnore…` zamykała blok i wypychała instrukcje poza dane. `_safe()` zamienia `<`/`>` na `‹`/`›` i skleja białe znaki — test sprawdza, że `</dane>` występuje w promptcie dokładnie raz.
+- **Generatory nie znają bazy.** Bramka, cache i fallback siedzą w `generate_comment`; generator to jedna metoda `generate()`. Dzięki temu raport (etap 8) podmienia generator bez powielania logiki.
+- **`except Exception` → `CommentError` bez treści wyjątku.** SDK bywa gadatliwe i potrafi pokazać fragmenty żądania, a tam jest klucz API. Test pilnuje, że `sk-ant-…` nie wycieka w komunikacie.
+- **Brak `LLM_MODEL` to błąd, nie zgadywanie.** `Config.require_llm()` wymaga klucza i nazwy modelu; nie wpisujemy „prawdopodobnie claude-…” (SPEC §0 pkt 2).
+- **Atrapa mówi wprost „(komentarz bez AI)”**, żeby w raporcie nie dało się pomylić jej z odpowiedzią modelu.
+
+**Korekty w trakcie etapu:**
+
+1. Pierwsza wersja komentarza atrapy pisała „1 spadków licznika” — dodana `_plural()` (1 spadek / 2 spadki / 5 spadków) i testy parametryzowane.
+2. `charts` był importowany na górze `cli.py`, więc każda komenda (`auth`, `collect`, `comment`) ładowała matplotlib i tworzyła katalog cache. Import przeniesiony do `_cmd_chart`.
+3. Po pierwszym przebiegu pokrycie `ai_comment.py` wynosiło 97%: nieprzetestowane zostały gałąź `except CommentError: raise` i domyślne tworzenie klienta SDK. Dopisane testy (podstawiony moduł `anthropic` w `sys.modules`), teraz 100%.
+
+**Czego nie sprawdzono:** komentarz **nie był uruchamiany na żywym modelu** — w repo nie ma klucza API i testy nie mogą wychodzić do sieci (SPEC §12). Wszystkie ścieżki modelu są sprawdzone na atrapie klienta; jakość samego tekstu (czy model nie zmyśla przyczyn) trzeba ocenić ręcznie na koncie z kluczem — to zadanie człowieka ze SPEC §16.
+
+**Obserwacja, nie błąd:** próg trendu `rel > 0.02` (nachylenie dzielone przez średnią) sprawia, że liniowo rosnąca oferta demo 1004 (151 → 2454 w 90 dni) dostaje etykietę `stabilny` — bo 25 wyświetleń/dzień to 1,9% średniej 1300. To wprost wzór z SPEC §6 FR-4; nie zmieniam go, ale przy czytaniu raportu warto o tym pamiętać.
 
 ## Odstępstwa od SPEC
 

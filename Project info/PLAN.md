@@ -25,7 +25,7 @@
 | 4    | Kolektor i podstawowe CLI                      | M       | 1         | [x]    |
 | 5    | Analityka                                      | L       | 2         | [x]    |
 | 6    | Dane demo i wykresy                            | M       | 2         | [x]    |
-| 7    | Moduł AI                                       | M       | 2         | [ ]    |
+| 7    | Moduł AI                                       | M       | 2         | [x]    |
 | 8    | Raport HTML                                    | M       | 2         | [ ]    |
 | 9    | Zmiana ceny przez API (opcjonalny, decyzja D1) | M       | 3         | [ ]    |
 | 10   | Dokumentacja                                   | M       | —         | [ ]    |
@@ -234,13 +234,13 @@ ruff check . && pytest -q
 **Zależy od:** 5 (6 dla demonstracji) · **Czyta:** SPEC §6 FR-6, §10
 
 **Zadania**
-- [ ] `ai_comment.py`: interfejs `CommentGenerator`, `FakeCommentGenerator` (deterministyczny), `AnthropicCommentGenerator` (klient tworzony leniwie, model z `LLM_MODEL`, klucz z `ANTHROPIC_API_KEY`).
-- [ ] **Bramka danych:** `n_points < 6` lub `coverage < 0.3` → stały komunikat po polsku, **bez wywołania LLM**.
-- [ ] Prompt systemowy z SPEC §10. Wejście wyłącznie z zagregowanych liczb. Nazwa oferty w wydzielonym bloku danych.
-- [ ] Walidacja wyjścia (przycięcie do 700 znaków, usunięcie markdownu). Błąd API → komunikat zastępczy, bez przerywania raportu.
-- [ ] Cache w `ai_comments` pod kluczem hasha wejścia.
-- [ ] CLI: komenda `comment` oraz flaga `--no-ai` (użycie `FakeCommentGenerator` lub pominięcie).
-- [ ] Testy z SPEC §12: poniżej progów brak wywołania, prompt zawiera tylko agregaty, **nazwa oferty z próbą wstrzyknięcia instrukcji** (test sprawdza, że trafia do bloku danych), błąd API, cache hit bez drugiego wywołania.
+- [x] `ai_comment.py`: interfejs `CommentGenerator`, `FakeCommentGenerator` (deterministyczny), `AnthropicCommentGenerator` (klient tworzony leniwie, model z `LLM_MODEL`, klucz z `ANTHROPIC_API_KEY`; brak `LLM_MODEL` to `ConfigError`, nazwy modelu nie zgadujemy).
+- [x] **Bramka danych:** `n_points < 6` lub `coverage < 0.3` → stały komunikat po polsku, **bez wywołania LLM**.
+- [x] Prompt systemowy z SPEC §10. Wejście wyłącznie z zagregowanych liczb. Nazwa oferty w wydzielonym bloku danych.
+- [x] Walidacja wyjścia (przycięcie do 700 znaków, usunięcie markdownu). Błąd API → komunikat zastępczy, bez przerywania raportu.
+- [x] Cache w `ai_comments` pod kluczem hasha wejścia.
+- [x] CLI: komenda `comment` oraz flaga `--no-ai` (użycie `FakeCommentGenerator` lub pominięcie).
+- [x] Testy z SPEC §12: poniżej progów brak wywołania, prompt zawiera tylko agregaty, **nazwa oferty z próbą wstrzyknięcia instrukcji** (test sprawdza, że trafia do bloku danych), błąd API, cache hit bez drugiego wywołania. Dodatkowo: neutralizacja `</dane>` w nazwie, brak klucza API w komunikatach błędów, leniwe tworzenie klienta.
 
 **Bramka**
 ```bash
