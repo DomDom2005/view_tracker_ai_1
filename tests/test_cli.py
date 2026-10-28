@@ -12,7 +12,7 @@ from view_tracker_ai_1 import cli, storage
 from view_tracker_ai_1 import config as config_module
 from view_tracker_ai_1.auth import DeviceAuthorization, Tokens, TokenStatus
 from view_tracker_ai_1.client import RemoteOffer
-from view_tracker_ai_1.errors import ApiError, AuthError
+from view_tracker_ai_1.errors import ApiError, AuthError, StorageError
 from view_tracker_ai_1.models import Offer, Snapshot
 
 NOW = datetime(2026, 10, 28, 12, 0, tzinfo=UTC)
@@ -311,6 +311,31 @@ def test_storage_error_maps_to_exit_one(
 
     assert cli.main(["offers", "list", "--db", str(db_path)]) == cli.EXIT_USAGE
     assert "Błąd bazy danych" in capsys.readouterr().err
+
+
+def test_open_db_closes_the_connection_when_init_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Wyjątek z `init_db` nie może zostawić otwartego połączenia (ResourceWarning)."""
+
+    class TrackingConnection:
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    conn = TrackingConnection()
+    monkeypatch.setattr(cli.storage, "connect", lambda path: conn)
+
+    def failing_init(_conn: object) -> int:
+        raise StorageError("nieobsługiwana wersja schematu")
+
+    monkeypatch.setattr(cli.storage, "init_db", failing_init)
+
+    with pytest.raises(StorageError):
+        cli._open_db(config_module.Config.from_env())
+
+    assert conn.closed is True
 
 
 def test_config_error_maps_to_exit_one(

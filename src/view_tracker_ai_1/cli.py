@@ -1,4 +1,4 @@
-﻿"""Interfejs CLI (argparse).
+"""Interfejs CLI (argparse).
 
 Kody wyjścia (SPEC §8): 0 sukces, 1 błąd użytkownika/konfiguracji, 2 błąd autoryzacji,
 3 błąd API/limit. Komendy: `auth login`, `auth status`, `offers list`, `collect`.
@@ -290,7 +290,13 @@ def _build_client(config: Config) -> AllegroClient:
 
 def _open_db(config: Config) -> sqlite3.Connection:
     conn = storage.connect(config.effective_db_path)
-    storage.init_db(conn)
+    try:
+        storage.init_db(conn)
+    except Exception:
+        # Bez tego wyjątek z init_db (np. niezgodna wersja schematu) zostawiał
+        # otwarte połączenie — `finally` w komendzie już się nie wykonywał.
+        conn.close()
+        raise
     return conn
 
 
