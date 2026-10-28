@@ -95,6 +95,7 @@ class AllegroClient:
         *,
         statuses: Sequence[str] = DEFAULT_STATUSES,
         limit: int = DEFAULT_PAGE_LIMIT,
+        offer_ids: Sequence[str] | None = None,
     ) -> Iterator[RemoteOffer]:
         """Leniwa paginacja `GET /sale/offers` (offset/limit, jawne `limit`)."""
         if not 1 <= limit <= MAX_PAGE_LIMIT:
@@ -102,15 +103,14 @@ class AllegroClient:
 
         offset = 0
         while True:
-            payload = self._request(
-                "GET",
-                OFFERS_PATH,
-                params={
-                    "limit": limit,
-                    "offset": offset,
-                    "publication.status": list(statuses),
-                },
-            )
+            params: dict[str, Any] = {
+                "limit": limit,
+                "offset": offset,
+                "publication.status": list(statuses),
+            }
+            if offer_ids:
+                params["offer.id"] = list(offer_ids)
+            payload = self._request("GET", OFFERS_PATH, params=params)
             items = payload.get("offers") or []
             for item in items:
                 yield self._parse_offer(item)

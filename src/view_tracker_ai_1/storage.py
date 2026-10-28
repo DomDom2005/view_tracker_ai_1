@@ -107,44 +107,28 @@ def schema_version(conn: sqlite3.Connection) -> int | None:
 
 
 # --- zapis ------------------------------------------------------------------
+_UPSERT_OFFER_SQL = """
+INSERT INTO offers (offer_id, name, status, first_seen_at, last_seen_at)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(offer_id) DO UPDATE SET
+    name = excluded.name,
+    status = excluded.status,
+    last_seen_at = excluded.last_seen_at
+"""
+
+
 def upsert_offer(conn: sqlite3.Connection, offer: Offer) -> None:
     """Dodaj ofertę albo odśwież jej metadane (bez zmiany `first_seen_at`)."""
-    sql = """
-    INSERT INTO offers (offer_id, name, status, first_seen_at, last_seen_at)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(offer_id) DO UPDATE SET
-        name = excluded.name,
-        status = excluded.status,
-        last_seen_at = excluded.last_seen_at
-    """
     try:
         with conn:
-            conn.execute(
-                sql,
-                (
-                    offer.offer_id,
-                    offer.name,
-                    offer.status,
-                    to_iso(offer.first_seen_at),
-                    to_iso(offer.last_seen_at),
-                ),
-            )
+            conn.execute(_UPSERT_OFFER_SQL, _offer_params(offer))
     except sqlite3.IntegrityError as exc:
         raise StorageError(f"Nie udało się zapisać oferty {offer.offer_id}: {exc}") from exc
 
 
 def insert_snapshots(conn: sqlite3.Connection, snapshots: Iterable[Snapshot]) -> int:
     """Zapisz snapshoty w jednej transakcji. Zwraca liczbę faktycznie dodanych wierszy."""
-    rows = [
-        (
-            snapshot.offer_id,
-            to_iso(snapshot.captured_at),
-            snapshot.visits_count,
-            snapshot.watchers_count,
-            snapshot.source,
-        )
-        for snapshot in snapshots
-    ]
+    rows = [_snapshot_params(snapshot) for snapshot in snapshots]
     if not rows:
         return 0
 
@@ -155,6 +139,35 @@ def insert_snapshots(conn: sqlite3.Connection, snapshots: Iterable[Snapshot]) ->
     except sqlite3.IntegrityError as exc:
         raise StorageError(_integrity_message(exc)) from exc
     return conn.total_changes - before
+
+
+def save_collection(
+    conn: sqlite3.Connection,
+    *,
+    offers: Iterable[Offer],
+    snapshots: Iterable[Snapshot],
+) -> int:
+    """Zapisz oferty i snapshoty **w jednej transakcji** (przebieg kolektora).
+
+    Zwraca liczbę faktycznie dodanych snapshotów; powtórzony przebieg z tym samym
+    `captured_at` doda zero wierszy (UNIQUE + `ON CONFLICT DO NOTHING`).
+    """
+    offer_params = [_offer_params(offer) for offer in offers]
+    snapshot_params = [_snapshot_params(snapshot) for snapshot in snapshots]
+    if not offer_params and not snapshot_params:
+        return 0
+
+    try:
+        with conn:
+            if offer_params:
+                conn.executemany(_UPSERT_OFFER_SQL, offer_params)
+            # Liczymy tylko snapshoty — upserty ofert nie są „nowymi snapshotami”.
+            before_snapshots = conn.total_changes
+            if snapshot_params:
+                conn.executemany(_INSERT_SNAPSHOT_SQL, snapshot_params)
+    except sqlite3.IntegrityError as exc:
+        raise StorageError(_integrity_message(exc)) from exc
+    return conn.total_changes - before_snapshots
 
 
 def put_cached_comment(
@@ -319,6 +332,26 @@ def _row_to_snapshot(row: sqlite3.Row) -> Snapshot:
         visits_count=int(row["visits_count"]),
         watchers_count=int(row["watchers_count"]),
         source=str(row["source"]),  # type: ignore[arg-type]
+    )
+
+
+def _offer_params(offer: Offer) -> tuple[object, ...]:
+    return (
+        offer.offer_id,
+        offer.name,
+        offer.status,
+        to_iso(offer.first_seen_at),
+        to_iso(offer.last_seen_at),
+    )
+
+
+def _snapshot_params(snapshot: Snapshot) -> tuple[object, ...]:
+    return (
+        snapshot.offer_id,
+        to_iso(snapshot.captured_at),
+        snapshot.visits_count,
+        snapshot.watchers_count,
+        snapshot.source,
     )
 
 

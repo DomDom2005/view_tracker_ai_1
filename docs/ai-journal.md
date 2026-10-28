@@ -13,13 +13,14 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 | 2026-10-28 | Etap 1 — config, errors, models, storage | `Config` jako frozen dataclass z `from_env`, walidacją (`ALLEGRO_ENV`, `LLM_PROVIDER`, `LOG_LEVEL`, `ALLOW_PROD_WRITES`), hostami per środowisko i metodami `require_allegro_credentials()`/`require_write_permission()`; `setup_logging()` + `redact()` maskujące Bearer/JWT/`sk-ant-…`/`client_secret`; `AppError` i 5 typów błędów; modele `Offer`/`Snapshot`/`Series`/`SeriesSummary` (+`SeriesPoint`, `DailyGain`, `Anomaly`); `storage.py` ze schematem z SPEC §7, idempotentnym `init_db`, `upsert_offer`, `insert_snapshots`, `get_series`, `list_offers`, `get_last_snapshot`, cache AI, `log_action` | 75 testów; pokrycie: `config.py` 99%, `storage.py` 96%, `errors.py` i `models.py` 100%; `ruff check .` czysty | trafne po dwóch korektach (patrz „Notatki z etapu 1”) |
 | 2026-10-28 | Etap 2 — OAuth device flow i magazyn tokenów | `DeviceFlowAuth` (start → polling → tokeny, `slow_down`, `access_denied`, wygaśnięcie kodu), `TokenStore` (katalog 700, plik 600, zapis przez `mkstemp` + `os.replace`), rotacja refresh tokena (nowy zapisywany od razu, stary zachowany, gdy serwer go nie odeśle), `get_valid_token()` z buforem 5 min, `status()` bez ujawniania tokenów; `Tokens`/`DeviceAuthorization` z `repr=False` na sekretach | 101 testów (1 skip na Windows); pokrycie `auth.py` 92%; `ruff check .` czysty; wszystkie żądania przez `responses` | trafne po korektach (patrz „Notatki z etapu 2”) |
 | 2026-10-28 | Etap 3 — klient HTTP, retry, błędy, paginacja | `AllegroClient` (`get`, `iter_offers`, `RemoteOffer`): nagłówki `Accept` + `User-Agent`, Bearer z `auth.get_valid_token()`, timeouty 10/30 s, polityka `401` (odśwież + jeden retry), `422` → `ValidationError`, `429` (`Retry-After` jako sekundy albo HTTP-date, fallback 60 s z jitterem, 5 prób), `5xx`/timeout (3 próby), inne `4xx` → `ApiError`; paginacja `offset/limit` z jawnym `limit` (100, zakres 1..1000), stop na `len < limit` lub `offset >= totalCount`, pauza 0,2 s; fixtures `offers_page1..3.json` | 129 testów; pokrycie `client.py` 98%; brak prawdziwych `sleep` (uśpienia to lista); test na `caplog`, że token nie trafia do logów; `ruff check .` czysty | trafne; jedno świadome odstępstwo (start backoffu 60 s, nie 1 s) — patrz „Notatki z etapu 3” |
+| 2026-10-28 | Etap 4 — kolektor i CLI (koniec fazy 1) | `collector.run_once` (wspólny `captured_at`, jedna transakcja, zwraca liczbę nowych snapshotów) i `run_forever` (min. 300 s, `AuthError` zatrzymuje pętlę, inne błędy tylko logowane); `storage.save_collection` dla atomowego zapisu ofert + snapshotów; CLI z komendami `auth login`/`auth status`/`offers list`/`collect` oraz opcjami `--env`/`--db`/`-v` także po komendzie; `CommandParser` mapuje błędy użycia na kod 1; `scripts/probe_counter.py` (faza 0) | 164 testy (1 skip); pokrycie `cli.py` 98%, `collector.py` 100%, `storage.py` 94%; bramka PLAN uruchomiona dosłownie, w tym `python -m view_tracker_ai_1.cli --help`; `pip install -e .` i `view_tracker_ai_1 --version` wreszcie zweryfikowane | trafne po jednej realnej korekcie (licznik zapisanych snapshotów) — patrz „Notatki z etapu 4” |
 
 ## Notatki z etapu 0 (środowisko)
 
 - Python w PATH nie istnieje (Windows alias), użyty `C:\Users\domin\AppData\Local\Python\pythoncore-3.14-64\python.exe` (3.14.6).
 - `python -m venv` nie potrafił doinstalować `pip` — sandboxowy filtr plików blokował zapis do katalogów tworzonych przez `tempfile.mkdtemp`. `pip` w venv doinstalowany przez `uv`; zależności instalowane `uv pip install`.
 - `pip install -r requirements-dev.txt` przechodzi (wszystko „already satisfied”), ale kończył się kodem 1, bo pip nie mógł posprzątać swoich katalogów tymczasowych w sandboxie. Na zwykłej maszynie problem nie występuje.
-- `pip install -e .` **nie dało się zweryfikować** w sandboxie (build wheel używa katalogów tymczasowych). Do sprawdzenia przez człowieka: `pip install -e .` i `view_tracker_ai_1 --version`.
+- `pip install -e .` **nie dało się zweryfikować** w trybie `workspace-write` (build wheel używa katalogów tymczasowych). Przy pełnym dostępie do plików instalacja edytowalna i komenda `view_tracker_ai_1 --version` działają — sprawdzone w etapie 4.
 - Fixture `tmp_path` nie działał w trybie `workspace-write` (katalogi z prawami 0700 stają się niedostępne). Przy pełnym dostępie do plików problem znika i testy idą standardową bramką, bez obejść.
 
 ## Notatki z etapu 1 (decyzje i korekty)
@@ -55,6 +56,21 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 - **`limit` zawsze jawny** (domyślnie 100): API ma domyślnie 20, więc „cicha” paginacja gubiłaby oferty.
 
 **Korekty:** (1) ruff zgłosił sortowanie importów w teście — poprawione; (2) po pierwszym zielonym przebiegu dopisałem testy na `Retry-After` w formacie HTTP-date i na śmieciową wartość nagłówka, bo gałąź parsowania daty była nieprzetestowana. Poza tym testy przeszły za pierwszym razem — nie odnotowuję korekt, których nie było.
+
+## Notatki z etapu 4 (decyzje i korekty)
+
+**Decyzje projektowe:**
+
+- **`storage.save_collection()`** robi jedną transakcję na oferty i snapshoty; bez tego dwa osobne `with conn:` commitowały niezależnie i „jedna transakcja” z PLAN-u byłaby fikcją.
+- **`run_forever` łapie szeroko** (`except Exception`), bo SPEC FR-3 mówi o błędzie pojedynczego przebiegu; `AuthError` leci dalej, a `KeyboardInterrupt` nie jest `Exception`, więc Ctrl+C naturalnie przerywa pętlę. Nieoczekiwany błąd zostaje w logu z tracebackiem — nie ginie, ale też nie zabija pętli.
+- **Opcje globalne działają też po komendzie** (`collect --env sandbox`), tak jak pokazuje `AGENTS.md`; na podkomendach mają `default=argparse.SUPPRESS`, żeby nie nadpisywać wartości podanej przed komendą pustą wartością.
+- **`CommandParser.error` → kod 1**, bo argparse domyślnie kończy błędy użycia kodem 2, a w SPEC §8 kod 2 oznacza błąd autoryzacji.
+- **`auth status` zawsze zwraca 0** — to komenda informacyjna; brak logowania to normalny stan, nie błąd.
+- **`_build_auth`/`_build_client`/`_open_db` jako fabryki** — testy CLI podmieniają je, więc nie trzeba mockować sieci ani prawdziwego device flow.
+
+**Korekta (realna):** pierwsza wersja `save_collection` liczyła wszystkie zmiany w połączeniu, więc `collect` na 2 ofertach meldował „4 nowych snapshotów” (2 upserty ofert + 2 snapshoty). Test to złapał; licznik liczy teraz tylko wstawienia do `snapshots`.
+
+**Faza 1 domknięta:** `collect` na atrapie klienta zapisuje snapshoty, `offers list` je czyta, pokrycie > 80% w każdym module, `pip install -e .` i `view_tracker_ai_1 --version` działają — warunek akceptacji z SPEC §15 spełniony (poza prawdziwym kontem sandbox, które należy do człowieka).
 
 ## Odstępstwa od SPEC
 

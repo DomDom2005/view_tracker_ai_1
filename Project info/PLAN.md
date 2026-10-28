@@ -22,7 +22,7 @@
 | 1    | Fundament: config, błędy, modele, storage      | M       | 1         | [x]    |
 | 2    | Autoryzacja OAuth                              | L       | 1         | [x]    |
 | 3    | Klient HTTP: retry, błędy, paginacja           | L       | 1         | [x]    |
-| 4    | Kolektor i podstawowe CLI                      | M       | 1         | [ ]    |
+| 4    | Kolektor i podstawowe CLI                      | M       | 1         | [x]    |
 | 5    | Analityka                                      | L       | 2         | [ ]    |
 | 6    | Dane demo i wykresy                            | M       | 2         | [ ]    |
 | 7    | Moduł AI                                       | M       | 2         | [ ]    |
@@ -161,11 +161,11 @@ ruff check . && pytest -q tests/test_client.py --cov=src/view_tracker_ai_1
 **Zależy od:** 2, 3 · **Czyta:** SPEC §6 FR-1…FR-3, FR-10, §8
 
 **Zadania**
-- [ ] `collector.py`: `run_once(client, storage, statuses)`. Wspólny `captured_at` (UTC) dla całego przebiegu, aktualizacja `offers`, zapis w jednej transakcji. Zwraca liczbę zapisanych snapshotów.
-- [ ] `cli.py` (`argparse`): opcje globalne `--env`, `--db`, `-v`. Komendy `auth login`, `auth status`, `offers list`, `collect`. Kody wyjścia: 0/1/2/3 (SPEC §8).
-- [ ] `collect --loop --interval SEC` (domyślnie 3600, minimum 300), czysty Ctrl+C, błąd pojedynczego przebiegu logowany bez przerywania pętli, z wyjątkiem `AuthError`.
-- [ ] Testy: kolektor ze sfałszowanym klientem, `--help` każdej komendy, kody wyjścia, wymuszenie minimum interwału.
-- [ ] (Opcjonalnie) `scripts/probe_counter.py` z fazy 0 SPEC. Uruchomienie wymaga człowieka (≥ 48 h), agent tylko dostarcza skrypt.
+- [x] `collector.py`: `run_once(client, conn, *, statuses, captured_at)` — wspólny `captured_at` (UTC) dla całego przebiegu, aktualizacja `offers`, zapis w jednej transakcji (`storage.save_collection`). Zwraca liczbę **nowych** snapshotów (upserty ofert nie są liczone).
+- [x] `cli.py` (`argparse`): opcje globalne `--env`, `--db`, `-v` (działają też po komendzie). Komendy `auth login`, `auth status`, `offers list`, `collect`. Kody wyjścia: 0/1/2/3 (SPEC §8); błędy użycia argparse kończą się kodem 1, nie 2.
+- [x] `collect --loop --interval SEC` (domyślnie 3600, minimum 300), czysty Ctrl+C (kod 0), błąd pojedynczego przebiegu logowany bez przerywania pętli, z wyjątkiem `AuthError`.
+- [x] Testy: kolektor ze sfałszowanym klientem, `--help` każdej komendy, kody wyjścia, wymuszenie minimum interwału.
+- [x] (Opcjonalnie) `scripts/probe_counter.py` z fazy 0 SPEC — skrypt gotowy; uruchomienie (≥ 48 h) należy do człowieka.
 
 **Bramka**
 ```bash
