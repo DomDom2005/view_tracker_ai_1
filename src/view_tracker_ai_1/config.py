@@ -27,7 +27,6 @@ REPO_URL = "https://github.com/DomDom2005/view_tracker_ai_1"
 DEFAULT_USER_AGENT = f"view_tracker_ai_1/{__version__} (+{REPO_URL})"
 
 VALID_ENVS: tuple[str, ...] = ("sandbox", "prod")
-VALID_LLM_PROVIDERS: tuple[str, ...] = ("anthropic", "none")
 
 API_BASE_URLS: Mapping[str, str] = {
     "sandbox": "https://api.allegro.pl.allegrosandbox.pl",
@@ -65,9 +64,6 @@ class Config:
     user_agent: str = DEFAULT_USER_AGENT
     token_store_path: Path = field(default_factory=default_token_store_path)
     db_path: Path | None = None
-    llm_provider: str = "none"
-    anthropic_api_key: str | None = None
-    llm_model: str | None = None
     allow_prod_writes: bool = False
     log_level: str = DEFAULT_LOG_LEVEL
 
@@ -106,22 +102,6 @@ class Config:
                 "jeśli naprawdę chcesz zmieniać dane poza sandboxem."
             )
 
-    def require_llm(self) -> tuple[str, str]:
-        """Zwróć `(api_key, model)` albo rzuć `ConfigError` z podpowiedzią (SPEC §13)."""
-        if self.llm_provider != "anthropic":
-            raise ConfigError(
-                "Komentarz AI jest wyłączony (LLM_PROVIDER=none). Ustaw LLM_PROVIDER=anthropic "
-                "albo użyj --no-ai."
-            )
-        if not self.anthropic_api_key:
-            raise ConfigError("LLM_PROVIDER=anthropic wymaga ANTHROPIC_API_KEY (w `.env`).")
-        if not self.llm_model:
-            raise ConfigError(
-                "LLM_PROVIDER=anthropic wymaga LLM_MODEL — nazwy modelu nie zgadujemy "
-                "(SPEC §0 pkt 2)."
-            )
-        return self.anthropic_api_key, self.llm_model
-
     def with_overrides(self, **changes: object) -> Config:
         """Kopia konfiguracji z nadpisanymi polami (np. `--env`/`--db` z CLI)."""
         return replace(self, **changes)  # type: ignore[arg-type]
@@ -149,17 +129,6 @@ class Config:
                 f"ALLEGRO_ENV={env!r} jest niepoprawne — dozwolone: {', '.join(VALID_ENVS)}."
             )
 
-        provider = (_clean(source.get("LLM_PROVIDER")) or "").lower() or "none"
-        if provider not in VALID_LLM_PROVIDERS:
-            raise ConfigError(
-                f"LLM_PROVIDER={provider!r} jest niepoprawne — "
-                f"dozwolone: {', '.join(VALID_LLM_PROVIDERS)}."
-            )
-
-        api_key = _clean(source.get("ANTHROPIC_API_KEY"))
-        if provider == "anthropic" and api_key is None:
-            raise ConfigError("LLM_PROVIDER=anthropic wymaga ANTHROPIC_API_KEY.")
-
         log_level = (_clean(source.get("LOG_LEVEL")) or DEFAULT_LOG_LEVEL).upper()
         if log_level not in logging.getLevelNamesMapping():
             raise ConfigError(f"LOG_LEVEL={log_level!r} nie jest poziomem logowania.")
@@ -178,9 +147,6 @@ class Config:
                 else default_token_store_path()
             ),
             db_path=Path(db_path_value).expanduser() if db_path_value is not None else None,
-            llm_provider=provider,
-            anthropic_api_key=api_key,
-            llm_model=_clean(source.get("LLM_MODEL")),
             allow_prod_writes=_as_bool(source.get("ALLOW_PROD_WRITES"), name="ALLOW_PROD_WRITES"),
             log_level=log_level,
         )
@@ -193,13 +159,12 @@ REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"(?i)\b(bearer)\s+[A-Za-z0-9._~+/=-]{8,}"), r"\1 ***"),
     (
         re.compile(
-            r"(?i)\b(access_token|refresh_token|client_secret|api_key|apikey|"
-            r"anthropic_api_key)(\s*[=:]\s*)[^\s,;&\"']+"
+            r"(?i)\b(access_token|refresh_token|client_secret|api_key|apikey)"
+            r"(\s*[=:]\s*)[^\s,;&\"']+"
         ),
         r"\1\2***",
     ),
     (re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}"), "***JWT***"),
-    (re.compile(r"sk-ant-[A-Za-z0-9_-]{6,}"), "***API_KEY***"),
 )
 
 

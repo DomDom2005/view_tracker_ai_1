@@ -34,7 +34,6 @@ def test_defaults_from_empty_environment() -> None:
     assert config.client_secret is None
     assert config.user_agent == DEFAULT_USER_AGENT
     assert config.user_agent.startswith(f"view_tracker_ai_1/{__version__}")
-    assert config.llm_provider == "none"
     assert config.allow_prod_writes is False
     assert config.log_level == "INFO"
     assert config.effective_db_path == default_db_path("sandbox")
@@ -70,18 +69,6 @@ def test_explicit_paths_are_used() -> None:
 def test_invalid_env_is_rejected() -> None:
     with pytest.raises(ConfigError, match="ALLEGRO_ENV"):
         build(ALLEGRO_ENV="staging")
-
-
-def test_invalid_llm_provider_is_rejected() -> None:
-    with pytest.raises(ConfigError, match="LLM_PROVIDER"):
-        build(LLM_PROVIDER="openai")
-
-
-def test_anthropic_requires_api_key() -> None:
-    with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
-        build(LLM_PROVIDER="anthropic")
-    config = build(LLM_PROVIDER="anthropic", ANTHROPIC_API_KEY="sk-ant-test")
-    assert config.anthropic_api_key == "sk-ant-test"
 
 
 def test_invalid_log_level_is_rejected() -> None:
@@ -132,7 +119,6 @@ def test_prod_writes_are_blocked_by_default() -> None:
         ("refresh_token=def456", "def456"),
         ("client_secret=supersecret", "supersecret"),
         ("api_key=key12345", "key12345"),
-        ("sk-ant-api03-abcdef", "sk-ant-api03-abcdef"),
         (
             "token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature123",
             "eyJzdWIiOiIxMjM0NTY3ODkwIn0",

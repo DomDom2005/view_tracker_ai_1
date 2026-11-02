@@ -1,34 +1,46 @@
-# Przepływ danych
+# Przepływ danych (2.0)
 
-Diagram architektury (źródło: `Project info/SPEC.md` §5).
+Diagram i ścieżki przepływu dla aplikacji webowej (SPEC-2.0 §5).
 
 ```mermaid
 flowchart LR
-    A[Allegro REST API] -->|GET /sale/offers| B[collector]
-    B --> C[(SQLite: offers, snapshots)]
-    C --> D[analytics: przedziały, delty, trend, anomalie]
-    D --> E[charts: PNG]
-    D --> F[ai_comment: LLM]
-    E --> G[report: HTML]
-    F --> G
-    H[auth: OAuth device flow + tokeny] --> B
-    I[actions: PATCH ceny, faza 3] -->|--apply| A
+    A[Allegro REST API] -->|GET /sale/offers| B[client + collector]
+    A -->|GET /sale/offer-events| E[events]
+    B --> C[(SQLite: offers, snapshots, collect_runs)]
+    E --> C2[(SQLite: offer_events, annotations, alert_rules, app_state)]
+    C --> D[queries.py: agregaty SQL]
+    C2 --> D
+    D --> F[services.py: przypadki użycia]
+    G[analytics.py: funkcje czyste] --> F
+    F --> H[ui/: Streamlit + Plotly]
+    I[auth: device flow] --> H
+    J[ui/runtime.py: pętla kolektora] --> B
+    H -->|"Odśwież" / tryb ciągły| J
+    K[demo.py: dane syntetyczne] --> C
 ```
 
-## Przepływ w krokach
+## Ścieżki
 
-1. `auth login` — device flow (SPEC §6 FR-1), tokeny w pliku poza repo (`TOKEN_STORE_PATH`).
-2. `collect` — paginacja `GET /sale/offers` (`limit` jawnie, `offset += limit`), wspólny
-   `captured_at` w UTC dla całego przebiegu, zapis w jednej transakcji.
-3. `analytics` — czyste funkcje na seriach: przedziały, delty, anomalie `counter_decrease`,
-   agregacja dzienna w `Europe/Warsaw`, `coverage`, trend OLS.
-4. `chart` / `report` — PNG i samodzielny HTML; dane `source='synthetic'` zawsze z napisem
-   „DANE SYNTETYCZNE”.
-5. `comment` — bramka danych (`n_points < 6` lub `coverage < 0.3` → brak wywołania LLM),
-   wejście do modelu wyłącznie jako agregaty.
+1. **Start aplikacji** — `ui/app.py` czyta stan z URL (`db`, `offer`, `range`, `metric`,
+   `from`/`to`), buduje `Config` dla wybranej bazy i rysuje belkę statusu (token, świeżość,
+   wersje). Brak `.env` nie jest błędem.
+2. **Logowanie** — `Dane → „Rozpocznij logowanie”`: device flow (`auth.py`), kod i link
+   w UI, zatwierdzenie na stronie Allegro, tokeny zapisane poza repo (`700`/`600`, atomowo).
+3. **Zbieranie** — „Odśwież teraz” woła `services.refresh_once` (jeden przebieg, wpis
+   w `collect_runs`). Tryb ciągły to wątek w `ui/runtime.py` z własnym połączeniem SQLite.
+4. **Odczyt** — `queries.py` liczy agregaty w SQL (poziomy jednej chwili, przyrosty per oferta,
+   mediana, luki, świeżość), `analytics.py` liczy serię i podsumowanie. **Nie sumujemy poziomów
+   w czasie** — przyrosty per oferta, spadki pomijane w sumie.
+5. **Prezentacja** — `services.py` składa dane dla stron, `ui/charts.py` rysuje Plotly
+   (poziom + dzienne przyrosty + znaczniki zdarzeń/adnotacji). UI nie zna SQL-a.
+6. **Zdarzenia i adnotacje** — `events.py` parsuje `GET /sale/offer-events` (kształt
+   niezweryfikowany, plan B: adnotacje ręczne) i ocenia alerty progowe.
+7. **Demo** — `demo.py` generuje deterministyczne dane syntetyczne do `data/demo.db`;
+   generator odmawia dopisania do bazy z danymi z API.
 
 ## Czego ten przepływ nie robi
 
 - Nie scrapuje allegro.pl i nie używa nieudokumentowanych endpointów.
-- Nie wysyła do LLM surowych danych konta ani sekretów.
 - Nie miesza danych `api` i `synthetic` w jednej bazie.
+- Nie wysyła nigdzie tokenów ani sekretów; nie eksportuje plików (2.0 wycofało eksport).
+- Nie uruchamia pętli bez jawnego włączenia w UI.

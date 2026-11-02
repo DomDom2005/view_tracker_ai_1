@@ -47,7 +47,7 @@ Legenda: ✅ potwierdzone w dokumentacji · ⚠️ potwierdzone, ale inaczej ni�
 
 - `Accept: application/vnd.allegro.public.v1+json` (wersja beta: `application/vnd.allegro.beta.v1+json`).
 - `Content-Type: application/vnd.allegro.public.v1+json` przy `POST`/`PATCH`/`PUT`.
-- **`User-Agent: NazwaAplikacji/Wersja (+URL)`** — od **2026-06-30** żądania bez poprawnego UA są odrzucane. To nowy wymóg, którego SPEC nie przewidywał. Nasz UA: `view_tracker_ai_1/1.0.0 (+https://github.com/DomDom2005/view_tracker_ai_1)`, nadpisywalny zmienną `ALLEGRO_USER_AGENT`.
+- **`User-Agent: NazwaAplikacji/Wersja (+URL)`** — od **2026-06-30** żądania bez poprawnego UA są odrzucane. To nowy wymóg, którego SPEC nie przewidywał. Nasz UA: `view_tracker_ai_1/2.1.0 (+https://github.com/DomDom2005/view_tracker_ai_1)`, nadpisywalny zmienną `ALLEGRO_USER_AGENT`.
 - Źródła: [informacje podstawowe](https://developer.allegro.pl/tutorials/informacje-podstawowe-b21569boAI1), [FAQ](https://developer.allegro.pl/faq) — 2026-10-27.
 
 ---
@@ -248,6 +248,7 @@ Zmiany, które trzeba wprowadzić względem pierwotnego `Project info/SPEC.md`:
 
 ## 8. Otwarte `TODO(verify)`
 
+
 | # | Co | Gdzie w kodzie | Jak domknąć |
 |---|---|---|---|
 | 1 | Czy `scope` w device flow idzie w query, czy w body | `auth.py` | pierwsze `auth login --env sandbox` u człowieka |
@@ -256,3 +257,20 @@ Zmiany, które trzeba wprowadzić względem pierwotnego `Project info/SPEC.md`:
 | 4 | Czy `429` zawiera nagłówek `Retry-After` | `client.py` (polityka retry) | pierwszy realny `429`; do tego czasu fallback ~60 s |
 | 5 | Znaczenie `count` vs `totalCount` | `collector.py` (warunek końca paginacji) | porównanie na koncie sandbox z >1 stroną ofert |
 | 6 | Czy zmiana ceny działa na sandboxie | `actions.py` | `act price --apply --env sandbox` u człowieka |
+| 7 | Kształt odpowiedzi `GET /sale/offer-events` (pola eventu) | `events.py` (`parse_events`) | pierwsze pobranie zdarzeń na sandboxie; parser tolerancyjny, błąd = `EventError` |
+| 8 | Scope potrzebny do `GET /sale/offer-events` | `events.py` (mapowanie 403) | pierwsze żądanie; przy `403` zostają adnotacje ręczne |
+
+---
+
+## 9. Zdarzenia ofert (`GET /sale/offer-events`) — 2026-11-02
+
+Potrzebne do warstwy zdarzeń na wykresie (SPEC-2.0 FR-15).
+
+- ✅ Endpoint: **`GET /sale/offer-events`** (operacja `getOfferEvents`) — dziennik zdarzeń ofert zalogowanego sprzedawcy „z ostatnich 24 godzin”.
+- ✅ Parametry: `from` (id eventu — zwraca zdarzenia późniejsze), `limit` (domyślnie **100**, maks. **1000**), `type` (filtr typu, np. `OFFER_ENDED`). Paginacja po `from`, nie po offset.
+- ✅ Typy zdarzeń wymienione w dokumentacji: `OFFER_ACTIVATED`, `OFFER_CHANGED`, `OFFER_STOCK_CHANGED`, `OFFER_PRICE_CHANGED`, `OFFER_ENDED`, `OFFER_ARCHIVED`, `OFFER_BID_PLACED`, `OFFER_BID_CANCELED`, `OFFER_TRANSLATION_UPDATED`, `OFFER_VISIBILITY_CHANGED`.
+- ⚠️ **Kształt odpowiedzi NIEZWERYFIKOWANY** — dokumentacja operacji jest SPA i nie dała się odczytać. Kod parsuje tolerancyjnie: `events[]` z polami `id`, `type`, `occurredAt`/`occurred_at`, `offer.id`/`offerId`. Gdy kształt będzie inny, parser to zgłosi jako `EventError`, a adnotacje ręczne nadal działają (plan B z SPEC-2.0 §15).
+- ⚠️ **Scope NIEZWERYFIKOWANY** — dokumentacja poradnika go nie podaje; zakładamy `allegro:api:sale:offers:read` (ten sam zasób co lista ofert). Jeśli API zwróci `403`, UI pokaże „zdarzenia niedostępne” i zostanie przy adnotacjach ręcznych.
+- Źródło: [poradnik „Zarządzanie ofertami” — Dziennik zdarzeń](https://developer.allegro.pl/tutorials/jak-zarzadzac-ofertami-7GzB2L37ase) — 2026-11-02.
+
+---

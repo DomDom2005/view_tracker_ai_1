@@ -85,6 +85,14 @@ def select_points(
     return tuple(point for point in points if start <= _as_utc(point.captured_at) <= moment)
 
 
+def select_between(
+    points: Iterable[SeriesPoint], start: datetime, end: datetime
+) -> tuple[SeriesPoint, ...]:
+    """Punkty z dowolnego zakresu [start, end] — dla zakresu własnego z UI (FR-10)."""
+    first, last = _as_utc(start), _as_utc(end)
+    return tuple(point for point in points if first <= _as_utc(point.captured_at) <= last)
+
+
 # --- delty i anomalie -------------------------------------------------------
 def deltas(points: Sequence[SeriesPoint]) -> tuple[int, ...]:
     """Różnice między kolejnymi punktami (`v_i − v_{i−1}`); ujemne są dozwolone."""
@@ -157,20 +165,30 @@ def coverage(points: Sequence[SeriesPoint], range_key: str, now: datetime) -> fl
     `select_points`. Dla `all` mianownikiem jest rozpiętość dostępnych danych, więc
     seria bez luk daje 1.0, a seria z dziurami — wartość mniejszą.
     """
-    points = select_points(points, range_key, now)
-    if not points:
-        return 0.0
-
+    selected = select_points(points, range_key, now)
     duration = range_duration(range_key)
-    if duration is None:
-        first, last = _as_utc(points[0].captured_at), _as_utc(points[-1].captured_at)
+    hours = None if duration is None else duration.total_seconds() / SECONDS_PER_HOUR
+    return _coverage_ratio(selected, hours)
+
+
+def coverage_between(points: Sequence[SeriesPoint], start: datetime, end: datetime) -> float:
+    """Pokrycie dla zakresu własnego: mianownikiem jest długość okna w godzinach."""
+    selected = select_between(points, start, end)
+    hours = max(0.0, (_as_utc(end) - _as_utc(start)).total_seconds() / SECONDS_PER_HOUR)
+    return _coverage_ratio(selected, hours if hours > 0 else None)
+
+
+def _coverage_ratio(selected: Sequence[SeriesPoint], nominal_hours: float | None) -> float:
+    if not selected:
+        return 0.0
+    if nominal_hours is None:
+        first, last = _as_utc(selected[0].captured_at), _as_utc(selected[-1].captured_at)
         hours = (last - first).total_seconds() / SECONDS_PER_HOUR + 1.0
     else:
-        hours = duration.total_seconds() / SECONDS_PER_HOUR
-
+        hours = nominal_hours
     if hours <= 0:  # pragma: no cover - nienaturalne: przedział zawsze ma długość
         return 1.0
-    return min(1.0, distinct_hours(points) / hours)
+    return min(1.0, distinct_hours(selected) / hours)
 
 
 # --- trend ------------------------------------------------------------------
@@ -212,6 +230,21 @@ def summarize(series: Series, *, range_key: str, now: datetime) -> SeriesSummary
     a nie nominalne granice okna — dzięki temu widać, jak daleko dane sięgają.
     """
     points = select_points(series.points, range_key, now)
+    duration = range_duration(range_key)
+    hours = None if duration is None else duration.total_seconds() / SECONDS_PER_HOUR
+    return _summary(points, nominal_hours=hours)
+
+
+def summarize_between(series: Series, *, start: datetime, end: datetime) -> SeriesSummary:
+    """Podsumowanie dla zakresu własnego (FR-10); pokrycie liczone dla długości okna."""
+    points = select_between(series.points, start, end)
+    hours = max(0.0, (_as_utc(end) - _as_utc(start)).total_seconds() / SECONDS_PER_HOUR)
+    return _summary(points, nominal_hours=hours if hours > 0 else None)
+
+
+def _summary(
+    points: Sequence[SeriesPoint], *, nominal_hours: float | None
+) -> SeriesSummary:
     if not points:
         return SeriesSummary(trend_label="brak danych")
 
@@ -236,7 +269,7 @@ def summarize(series: Series, *, range_key: str, now: datetime) -> SeriesSummary
         gained_total=gained_total(points),
         slope_per_day=slope,
         trend_label=label,
-        coverage=coverage(points, range_key, now),
+        coverage=_coverage_ratio(points, nominal_hours),
         anomalies=find_anomalies(points),
         n_points=len(points),
     )

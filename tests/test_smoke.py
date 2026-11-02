@@ -1,4 +1,4 @@
-"""Smoke test szkieletu: moduły się importują, CLI odpowiada, sieć jest zablokowana."""
+"""Smoke test szkieletu 2.0: moduły się importują, AI/CLI/eksport usunięte, sieć zamknięta."""
 
 from __future__ import annotations
 
@@ -8,22 +8,23 @@ import socket
 import pytest
 
 import view_tracker_ai_1
-from view_tracker_ai_1.cli import main
 
 MODULES = (
     "actions",
-    "ai_comment",
     "analytics",
     "auth",
-    "charts",
     "client",
     "collector",
     "config",
     "errors",
     "models",
-    "report",
+    "queries",
+    "services",
     "storage",
+    "text",
 )
+
+REMOVED_MODULES = ("ai_comment", "charts", "report", "cli")
 
 
 @pytest.mark.parametrize("name", MODULES)
@@ -31,15 +32,15 @@ def test_module_imports(name: str) -> None:
     assert importlib.import_module(f"view_tracker_ai_1.{name}") is not None
 
 
+@pytest.mark.parametrize("name", REMOVED_MODULES)
+def test_removed_modules_are_gone(name: str) -> None:
+    """2.0 usuwa AI, eksport i CLI — moduły nie mogą wrócić przypadkiem (SPEC-2.0 §10)."""
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(f"view_tracker_ai_1.{name}")
+
+
 def test_version_is_set() -> None:
     assert view_tracker_ai_1.__version__
-
-
-def test_cli_prints_version(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as exc_info:
-        main(["--version"])
-    assert exc_info.value.code == 0
-    assert "view_tracker_ai_1" in capsys.readouterr().out
 
 
 def test_network_is_blocked() -> None:

@@ -1,8 +1,8 @@
 # Runtime dependencies — wersje przypięte i przetestowane (Python 3.11+).
+# 2.0: Streamlit + Plotly zamiast matplotlib/jinja2; AI usunięte (SPEC-2.0 §10).
 # Instalacja: pip install -r requirements.txt
-anthropic==2.3.0
-jinja2==3.1.6
-matplotlib==3.11.2
+plotly==7.1.0
 python-dotenv==1.2.4
 requests==2.34.2
+streamlit==1.66.1
 tzdata==2026.5
