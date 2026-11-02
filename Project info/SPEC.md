@@ -65,7 +65,7 @@ Agent przyjmuje wartości domyślne, dopóki właściciel ich nie zmieni.
 
 - Baza produkcyjna: `https://api.allegro.pl`, sandbox: `https://api.allegro.pl.allegrosandbox.pl`. Każde żądanie wymaga tokena OAuth w nagłówku `Authorization: Bearer ...`.
 - Nagłówek `Accept: application/vnd.allegro.public.v1+json` (a przy `POST/PUT/PATCH` odpowiedni `Content-Type`).
-- Nagłówek `User-Agent: NazwaAplikacji/Wersja (+URL)` jest **obowiązkowy** — od 2026-06-30 żądania bez poprawnego UA są odrzucane. Nasz: `view_tracker_ai_1/0.0.1 (+https://github.com/DomDom2005/view_tracker_ai_1)`, nadpisywalny przez `ALLEGRO_USER_AGENT`.
+- Nagłówek `User-Agent: NazwaAplikacji/Wersja (+URL)` jest **obowiązkowy** — od 2026-06-30 żądania bez poprawnego UA są odrzucane. Nasz: `view_tracker_ai_1/1.0.0 (+https://github.com/DomDom2005/view_tracker_ai_1)`, nadpisywalny przez `ALLEGRO_USER_AGENT`.
 - `GET /sale/offers` (lista ofert sprzedawcy) zwraca w każdej ofercie obiekt `stats` z polami `visitsCount` (wyświetlenia) i `watchersCount` (obserwujący) — potwierdzone przykładową odpowiedzią w dokumentacji.
 - Lista ofert przyjmuje m.in. `limit` (`1..1000`, **domyślnie 20**), `offset`, `offer.id`, `name`, `publication.status` (wartości m.in. `INACTIVE`, `ACTIVATING`, `ACTIVE`, `ENDED`). Odpowiedź: `offers`, `count`, `totalCount`.
 - Zmiana ceny w `PATCH /sale/product-offers/{offerId}` to pole `sellingMode.price` (`amount` jako string + `currency`), a nie `buyNowPrice`. Stary `PUT /sale/offers/{offerId}` nie istnieje od 2024-01-01.
@@ -357,7 +357,7 @@ Opcjonalnie GitHub Actions: `ruff check` + `pytest` na każdy push.
 ## 13. Bezpieczeństwo
 
 - Sekrety tylko w zmiennych środowiskowych / `.env` (poza repo). W repo wyłącznie `.env.example` z nazwami.
-- **Zmienne:** `ALLEGRO_CLIENT_ID`, `ALLEGRO_CLIENT_SECRET`, `ALLEGRO_ENV` (`sandbox`|`prod`), `ALLEGRO_USER_AGENT` (domyślnie `view_tracker_ai_1/0.0.1 (+https://github.com/DomDom2005/view_tracker_ai_1)`), `TOKEN_STORE_PATH` (domyślnie `~/.config/view_tracker_ai_1/tokens.json`), `DB_PATH`, `LLM_PROVIDER` (`anthropic`|`none`), `ANTHROPIC_API_KEY`, `LLM_MODEL`, `ALLOW_PROD_WRITES` (domyślnie niewłączone), `LOG_LEVEL`.
+- **Zmienne:** `ALLEGRO_CLIENT_ID`, `ALLEGRO_CLIENT_SECRET`, `ALLEGRO_ENV` (`sandbox`|`prod`), `ALLEGRO_USER_AGENT` (domyślnie `view_tracker_ai_1/1.0.0 (+https://github.com/DomDom2005/view_tracker_ai_1)`), `TOKEN_STORE_PATH` (domyślnie `~/.config/view_tracker_ai_1/tokens.json`), `DB_PATH`, `LLM_PROVIDER` (`anthropic`|`none`), `ANTHROPIC_API_KEY`, `LLM_MODEL`, `ALLOW_PROD_WRITES` (domyślnie niewłączone), `LOG_LEVEL`.
 - Plik tokenów: katalog `700`, plik `600`, zapis atomowy (plik tymczasowy + `os.replace`).
 - `.gitignore`: `.env`, `data/`, `reports/`, `*.db`, pliki tokenów.
 - Filtr logowania maskujący `Authorization`, `access_token`, `refresh_token`, `client_secret`, klucze API. Nie loguj pełnych ciał odpowiedzi autoryzacyjnych.

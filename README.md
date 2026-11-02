@@ -95,7 +95,7 @@ Wzór: [`.env.example`](.env.example). Plik `.env` trzymaj **poza repo** (jest w
 | `ALLEGRO_CLIENT_ID` | identyfikator aplikacji z portalu | tak (API) | `twoj-client-id` |
 | `ALLEGRO_CLIENT_SECRET` | sekret aplikacji | tak (API) | `twoj-client-secret` |
 | `ALLEGRO_ENV` | `sandbox` albo `prod` | nie (dom. `sandbox`) | `sandbox` |
-| `ALLEGRO_USER_AGENT` | obowiązkowy nagłówek UA | nie (jest domyślny) | `view_tracker_ai_1/0.0.1 (+https://github.com/...)` |
+| `ALLEGRO_USER_AGENT` | obowiązkowy nagłówek UA | nie (jest domyślny) | `view_tracker_ai_1/1.0.0 (+https://github.com/...)` |
 | `TOKEN_STORE_PATH` | plik z tokenami | nie | `~/.config/view_tracker_ai_1/tokens.json` |
 | `DB_PATH` | baza SQLite | nie | `data/sandbox.db` |
 | `LLM_PROVIDER` | `anthropic` albo `none` | nie (dom. `none`) | `anthropic` |
