@@ -37,10 +37,12 @@ def database_selector(state: UiState) -> UiState:
         key=f"db-selector-{state.database}",
     )
     if chosen != state.database:
-        new_state = with_database(state, chosen)
+        from view_tracker_ai_1.ui import runtime as runtime_module
         from view_tracker_ai_1.ui import state as state_module
 
-        state_module.update(new_state)
+        # Zmiana bazy nie może zostawić pętli zbierającej dane do starej bazy.
+        runtime_module.stop_for(state_module.config_for(state))
+        state_module.update(with_database(state, chosen))
         st.rerun()
     return state
 

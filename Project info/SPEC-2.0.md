@@ -376,7 +376,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 **S3 — Przegląd i porównania.** *(wykonany 2026-11-02)* Kafle ogółem, ranking, mediana, porównanie okresów, porównanie ofert (indeks 100).
 *Bramka:* zgodność liczb z ręcznie policzonym przypadkiem w teście; wydajność < 2 s.
 
-**S4 — Kolektor w aplikacji.** „Odśwież”, `collect_runs`, świeżość, tryb ciągły (domyślnie OFF), obsługa `AuthError`/`ApiError`, WAL.
+**S4 — Kolektor w aplikacji.** *(wykonany 2026-11-02)* „Odśwież”, `collect_runs`, świeżość, tryb ciągły (domyślnie OFF), obsługa `AuthError`/`ApiError`, WAL.
 *Bramka:* testy wątku (start/stop ≤ 5 s, brak startu bez włączenia); brak wyścigów w teście równoległego odczytu i zapisu.
 
 **S5 — Zdarzenia i alerty.** `events.py`, weryfikacja `GET /sale/offer-events` w dokumentacji, nanoszenie zdarzeń i adnotacji, „co nowego”, reguły alertów.

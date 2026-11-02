@@ -251,7 +251,7 @@ def test_settings_page_shows_versions_and_paths() -> None:
     assert at.code
 
 
-def test_data_page_renders_collector_state() -> None:
+def test_data_page_renders_collector_controls() -> None:
     at = run_page(
         "from view_tracker_ai_1.ui.pages import data\n"
         "data.render()\n"
@@ -261,6 +261,38 @@ def test_data_page_renders_collector_state() -> None:
     labels = [metric.label for metric in at.metric]
     assert "Snapshoty" in labels
     assert any("Brak zapisanych przebiegów" in info.value for info in at.info)
+    assert [button.label for button in at.button] == ["Odśwież teraz"]
+    assert [toggle.label for toggle in at.toggle] == [
+        "Zbieraj cyklicznie, gdy aplikacja działa"
+    ]
+    assert at.number_input
+    assert at.number_input[0].value >= 300
+
+
+def test_refresh_button_reports_result(
+    isolated_environment: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from view_tracker_ai_1 import services
+
+    def fake_refresh(config, conn, **kwargs):  # noqa: ANN001, ANN003, ANN202
+        return services.RefreshResult(
+            run_id=1,
+            offers=2,
+            inserted=5,
+            started_at=NOW,
+            finished_at=NOW,
+        )
+
+    monkeypatch.setattr(services, "refresh_once", fake_refresh)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import data\n"
+        "data.render()\n"
+    )
+    at.button[0].click().run()
+
+    assert not at.exception
+    assert any("Zapisano 5" in success.value for success in at.success)
 
 
 def test_data_page_blocks_collection_on_prod() -> None:
@@ -271,7 +303,7 @@ def test_data_page_blocks_collection_on_prod() -> None:
     )
 
     assert not at.exception
-    assert any("tylko odczyt" in error.value for error in at.error)
+    assert any("do odczytu" in error.value for error in at.error)
 
 
 def test_comparison_page_needs_two_offers() -> None:
