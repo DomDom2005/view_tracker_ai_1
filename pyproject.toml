@@ -5,20 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "view_tracker_ai_1"
 version = "1.0.0"
-description = "Historia i trendy liczników ofert Allegro: snapshoty, wykresy, komentarz AI."
+description = "Interaktywna analiza liczników ofert Allegro: Streamlit + SQLite."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "anthropic==2.3.0",
-    "jinja2==3.1.6",
-    "matplotlib==3.11.2",
+    "plotly==7.1.0",
     "python-dotenv==1.2.4",
     "requests==2.34.2",
+    "streamlit==1.66.1",
     "tzdata==2026.5",
 ]
-
-[project.scripts]
-view_tracker_ai_1 = "view_tracker_ai_1.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

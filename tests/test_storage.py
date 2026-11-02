@@ -55,18 +55,108 @@ def conn() -> sqlite3.Connection:
 
 # --- schemat -----------------------------------------------------------------
 def test_init_db_is_idempotent_and_sets_version(conn: sqlite3.Connection) -> None:
-    assert storage.schema_version(conn) == 1
-    assert storage.init_db(conn) == 1
-    assert storage.schema_version(conn) == 1
+    assert storage.schema_version(conn) == storage.SCHEMA_VERSION
+    assert storage.init_db(conn) == storage.SCHEMA_VERSION
+    assert storage.schema_version(conn) == storage.SCHEMA_VERSION
 
 
 def test_init_db_creates_expected_tables(conn: sqlite3.Connection) -> None:
     rows = conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
     names = {row["name"] for row in rows}
-    assert {"schema_version", "offers", "snapshots", "ai_comments", "actions_log"} <= names
+    assert {
+        "schema_version",
+        "offers",
+        "snapshots",
+        "actions_log",
+        "collect_runs",
+        "offer_events",
+        "annotations",
+        "alert_rules",
+        "app_state",
+    } <= names
+    assert "ai_comments" not in names  # AI wycofane w 2.0 (SPEC-2.0 §10)
 
 
-def test_unsupported_schema_version_is_rejected() -> None:
+V1_SCHEMA_SQL = """
+CREATE TABLE schema_version (version INTEGER NOT NULL);
+CREATE TABLE offers (
+  offer_id TEXT PRIMARY KEY, name TEXT NOT NULL, status TEXT,
+  first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL
+);
+CREATE TABLE snapshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  offer_id TEXT NOT NULL REFERENCES offers(offer_id),
+  captured_at TEXT NOT NULL,
+  visits_count INTEGER NOT NULL CHECK (visits_count >= 0),
+  watchers_count INTEGER NOT NULL CHECK (watchers_count >= 0),
+  source TEXT NOT NULL CHECK (source IN ('api','synthetic')),
+  UNIQUE (offer_id, captured_at)
+);
+CREATE TABLE ai_comments (
+  offer_id TEXT NOT NULL, range_key TEXT NOT NULL, metric TEXT NOT NULL,
+  input_hash TEXT NOT NULL, text TEXT NOT NULL, created_at TEXT NOT NULL,
+  PRIMARY KEY (offer_id, range_key, metric, input_hash)
+);
+CREATE TABLE actions_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, offer_id TEXT NOT NULL,
+  action TEXT NOT NULL, request_json TEXT NOT NULL, response_status INTEGER,
+  response_summary TEXT
+);
+"""
+
+
+def _build_v1_database(path) -> None:  # noqa: ANN001 - pomocnik testowy
+    connection = sqlite3.connect(path)
+    connection.executescript(V1_SCHEMA_SQL)
+    connection.executescript(
+        """
+        INSERT INTO schema_version (version) VALUES (1);
+        INSERT INTO offers VALUES ('1', 'Suszarka', 'ACTIVE',
+            '2026-10-28T10:00:00+00:00', '2026-10-28T10:00:00+00:00');
+        INSERT INTO snapshots (offer_id, captured_at, visits_count, watchers_count, source)
+            VALUES ('1', '2026-10-28T10:00:00+00:00', 10, 2, 'api');
+        INSERT INTO ai_comments VALUES ('1', '7d', 'visits', 'hash', 'komentarz',
+            '2026-10-28T10:00:00+00:00');
+        """
+    )
+    connection.commit()
+    connection.close()
+
+
+def test_migration_from_v1_keeps_data_and_drops_ai_table(tmp_path) -> None:
+    path = tmp_path / "stara.db"
+    _build_v1_database(path)
+
+    connection = storage.connect(path)
+    assert storage.schema_version(connection) == 1
+    assert storage.init_db(connection) == storage.SCHEMA_VERSION
+    assert storage.schema_version(connection) == storage.SCHEMA_VERSION
+    assert storage.count_snapshots(connection) == 1
+    assert [offer.name for offer in storage.list_offers(connection)] == ["Suszarka"]
+
+    names = {
+        row["name"]
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    assert "ai_comments" not in names
+    assert "collect_runs" in names
+    connection.close()
+
+    backups = list(tmp_path.glob("stara.db.bak-*"))
+    assert len(backups) == 1
+
+
+def test_migration_is_idempotent(tmp_path) -> None:
+    path = tmp_path / "stara.db"
+    _build_v1_database(path)
+
+    connection = storage.connect(path)
+    assert storage.init_db(connection) == storage.SCHEMA_VERSION
+    assert storage.init_db(connection) == storage.SCHEMA_VERSION
+    connection.close()
+
+
+def test_init_db_rejects_future_schema_version() -> None:
     connection = sqlite3.connect(storage.MEMORY_DB)
     connection.row_factory = sqlite3.Row
     connection.executescript(storage.SCHEMA_SQL)
@@ -208,21 +298,53 @@ def test_count_snapshots_per_offer(conn: sqlite3.Connection) -> None:
     assert storage.count_snapshots(conn, offer_id="1") == 1
 
 
-# --- cache komentarzy i log akcji -------------------------------------------
-def test_comment_cache_roundtrip(conn: sqlite3.Connection) -> None:
-    key = {
-        "offer_id": "123",
-        "range_key": "7d",
-        "metric": "visits",
-        "input_hash": "abc",
-    }
-    assert storage.get_cached_comment(conn, **key) is None
+# --- przebiegi kolektora i stan UI ------------------------------------------
+def test_collect_run_lifecycle(conn: sqlite3.Connection) -> None:
+    run_id = storage.start_collect_run(conn, started_at=T0)
+    assert run_id > 0
+    assert storage.recent_collect_runs(conn)[0]["status"] == "running"
 
-    storage.put_cached_comment(conn, **key, text="Pierwszy komentarz", created_at=T0)
-    assert storage.get_cached_comment(conn, **key) == "Pierwszy komentarz"
+    finished = T0 + timedelta(seconds=30)
+    storage.finish_collect_run(
+        conn,
+        run_id,
+        finished_at=finished,
+        status="ok",
+        offers_count=3,
+        inserted=3,
+    )
 
-    storage.put_cached_comment(conn, **key, text="Zaktualizowany", created_at=T0)
-    assert storage.get_cached_comment(conn, **key) == "Zaktualizowany"
+    run = storage.recent_collect_runs(conn)[0]
+    assert run["status"] == "ok"
+    assert run["offers_count"] == 3
+    assert run["inserted"] == 3
+    assert run["finished_at"] == storage.to_iso(finished)
+    assert run["error_message"] is None
+
+
+def test_collect_run_error_status(conn: sqlite3.Connection) -> None:
+    run_id = storage.start_collect_run(conn, started_at=T0)
+    storage.finish_collect_run(
+        conn,
+        run_id,
+        finished_at=T0,
+        status="auth_error",
+        error_message="token wygasł",
+    )
+
+    run = storage.recent_collect_runs(conn)[0]
+    assert run["status"] == "auth_error"
+    assert run["error_message"] == "token wygasł"
+
+
+def test_app_state_roundtrip(conn: sqlite3.Connection) -> None:
+    assert storage.get_state(conn, "collect_interval") is None
+
+    storage.set_state(conn, "collect_interval", "3600")
+    assert storage.get_state(conn, "collect_interval") == "3600"
+
+    storage.set_state(conn, "collect_interval", "900")
+    assert storage.get_state(conn, "collect_interval") == "900"
 
 
 def test_log_action_stores_row(conn: sqlite3.Connection) -> None:

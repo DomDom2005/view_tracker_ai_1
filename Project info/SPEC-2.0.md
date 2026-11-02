@@ -364,7 +364,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 
 ## 15. Etapy i kryteria akceptacji
 
-**S0 — Porządki i fundament danych.** Usunięcie AI/CLI/eksportu (§10), migracja schematu v2 (§7), wydzielenie `services.py`/`queries.py`/`text.py` z logiki dotychczasowego CLI, aktualizacja zależności, zielone testy rdzenia.
+**S0 — Porządki i fundament danych.** *(wykonany 2026-11-02 na gałęzi `release/2.0`)* Usunięcie AI/CLI/eksportu (§10), migracja schematu v2 (§7), wydzielenie `services.py`/`queries.py`/`text.py` z logiki dotychczasowego CLI, aktualizacja zależności, zielone testy rdzenia.
 *Bramka:* `ruff` + `pytest`; migracja v1→v2 z testem; brak `anthropic`/`matplotlib` w środowisku; istniejące dane czytelne.
 
 **S1 — Szkielet aplikacji.** `ui/app.py` + nawigacja + `state.py` (URL) + belka statusu (token, baza, świeżość) + strona Ustawienia + wybór bazy/środowiska + read-only prod.

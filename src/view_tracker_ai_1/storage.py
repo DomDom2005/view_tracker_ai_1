@@ -1,20 +1,24 @@
-"""SQLite: schemat (SPEC §7), idempotentna inicjalizacja i zapytania.
+"""SQLite: schemat (SPEC-2.0 §7), migracje i zapytania.
 
-Warstwa bez żądań sieciowych (SPEC §5). Czasy trzymamy w UTC jako ISO 8601;
-prezentacja w `Europe/Warsaw` należy do analityki i raportu (SPEC §6 NFR-3).
+Warstwa bez żądań sieciowych. Czasy trzymamy w UTC jako ISO 8601; prezentacja
+w `Europe/Warsaw` należy do `text.py` / UI (SPEC §6 NFR-3).
+
+Wersja 2.0 dodaje tabele `collect_runs`, `offer_events`, `annotations`, `alert_rules`
+i `app_state` oraz usuwa `ai_comments` (AI wycofane — SPEC-2.0 §10).
 """
 
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 
 from view_tracker_ai_1.errors import StorageError
-from view_tracker_ai_1.models import Metric, Offer, Snapshot, Source
+from view_tracker_ai_1.models import Offer, Snapshot, Source
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MEMORY_DB = ":memory:"
 
 SCHEMA_SQL = """
@@ -39,16 +43,6 @@ CREATE TABLE IF NOT EXISTS snapshots (
 );
 CREATE INDEX IF NOT EXISTS idx_snapshots_offer_time ON snapshots (offer_id, captured_at);
 
-CREATE TABLE IF NOT EXISTS ai_comments (
-  offer_id   TEXT NOT NULL,
-  range_key  TEXT NOT NULL,
-  metric     TEXT NOT NULL,
-  input_hash TEXT NOT NULL,
-  text       TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  PRIMARY KEY (offer_id, range_key, metric, input_hash)
-);
-
 CREATE TABLE IF NOT EXISTS actions_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts TEXT NOT NULL,
@@ -57,6 +51,56 @@ CREATE TABLE IF NOT EXISTS actions_log (
   request_json TEXT NOT NULL,
   response_status INTEGER,
   response_summary TEXT
+);
+
+-- 2.0: przebiegi kolektora (FR-5/FR-6, ekran „Dane”)
+CREATE TABLE IF NOT EXISTS collect_runs (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  started_at    TEXT NOT NULL,
+  finished_at   TEXT,
+  status        TEXT NOT NULL CHECK (status IN ('running','ok','error','auth_error')),
+  offers_count  INTEGER NOT NULL DEFAULT 0,
+  inserted      INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT
+);
+
+-- 2.0: zdarzenia ofert z API (FR-15); bez FK — event może dotyczyć oferty spoza listy
+CREATE TABLE IF NOT EXISTS offer_events (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  offer_id     TEXT NOT NULL,
+  occurred_at  TEXT NOT NULL,
+  type         TEXT NOT NULL,
+  payload_json TEXT NOT NULL DEFAULT '{}',
+  fetched_at   TEXT NOT NULL,
+  UNIQUE (offer_id, occurred_at, type)
+);
+CREATE INDEX IF NOT EXISTS idx_offer_events_offer_time ON offer_events (offer_id, occurred_at);
+
+-- 2.0: adnotacje ręczne (FR-15)
+CREATE TABLE IF NOT EXISTS annotations (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  offer_id    TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  note        TEXT,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_annotations_offer_time ON annotations (offer_id, occurred_at);
+
+-- 2.0: reguły alertów progowych (FR-16)
+CREATE TABLE IF NOT EXISTS alert_rules (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  offer_id    TEXT,
+  kind        TEXT NOT NULL CHECK (kind IN ('pct_drop','abs_drop')),
+  threshold   REAL NOT NULL,
+  window_days INTEGER NOT NULL CHECK (window_days > 0),
+  created_at  TEXT NOT NULL
+);
+
+-- 2.0: trwały stan UI (np. interwał trybu ciągłego, znacznik ostatniej wizyty)
+CREATE TABLE IF NOT EXISTS app_state (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 """
 
@@ -76,25 +120,70 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     conn = sqlite3.connect(target)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # 2.0: UI czyta, a wątek kolektora pisze — WAL i ograniczony czas oczekiwania.
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
 def init_db(conn: sqlite3.Connection) -> int:
-    """Utwórz schemat (idempotentnie) i ustaw wersję. Zwraca wersję schematu."""
-    conn.executescript(SCHEMA_SQL)
-    row = conn.execute("SELECT version FROM schema_version").fetchone()
-    if row is None:
+    """Utwórz lub zmigruj schemat do bieżącej wersji (idempotentnie)."""
+    version = schema_version(conn)
+    if version is None:
+        conn.executescript(SCHEMA_SQL)
         with conn:
             conn.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
         return SCHEMA_VERSION
 
-    version = int(row["version"])
-    if version != SCHEMA_VERSION:
+    if version == SCHEMA_VERSION:
+        # Dociągnij brakujące tabele (np. gdy plik powstał częściowo) bez ruszania danych.
+        conn.executescript(SCHEMA_SQL)
+        return SCHEMA_VERSION
+
+    if version == 1:
+        return migrate_v1_to_v2(conn)
+
+    raise StorageError(
+        f"Nieobsługiwana wersja schematu: {version} (oczekiwana {SCHEMA_VERSION}). "
+        "Zaktualizuj aplikację albo użyj nowej bazy."
+    )
+
+
+def migrate_v1_to_v2(conn: sqlite3.Connection) -> int:
+    """Migracja schematu 1 → 2: nowe tabele, `DROP ai_comments`, kopia zapasowa pliku.
+
+    Migracja jest jednokierunkowa: po niej baza nie otworzy się w aplikacji 1.0.
+    """
+    backup = _backup_database(conn)
+    try:
+        conn.executescript(SCHEMA_SQL)
+        with conn:
+            conn.execute("DROP TABLE IF EXISTS ai_comments")
+            conn.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
+    except sqlite3.Error as exc:
+        where = "" if backup is None else f" Kopia sprzed migracji: {backup}."
         raise StorageError(
-            f"Nieobsługiwana wersja schematu: {version} (oczekiwana {SCHEMA_VERSION}). "
-            "Zaktualizuj aplikację albo użyj nowej bazy."
-        )
-    return version
+            f"Migracja bazy do wersji {SCHEMA_VERSION} nie powiodła się.{where}"
+        ) from exc
+    return SCHEMA_VERSION
+
+
+def _backup_database(conn: sqlite3.Connection) -> Path | None:
+    """Kopia pliku bazy przed migracją; dla bazy w pamięci nic nie robi."""
+    path = _database_path(conn)
+    if path is None or not path.exists():
+        return None
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    target = path.with_name(f"{path.name}.bak-{stamp}")
+    shutil.copy2(path, target)
+    return target
+
+
+def _database_path(conn: sqlite3.Connection) -> Path | None:
+    for row in conn.execute("PRAGMA database_list"):
+        if row[1] == "main" and row[2]:
+            return Path(row[2])
+    return None
 
 
 def schema_version(conn: sqlite3.Connection) -> int | None:
@@ -170,26 +259,64 @@ def save_collection(
     return conn.total_changes - before_snapshots
 
 
-def put_cached_comment(
-    conn: sqlite3.Connection,
-    *,
-    offer_id: str,
-    range_key: str,
-    metric: Metric,
-    input_hash: str,
-    text: str,
-    created_at: datetime,
-) -> None:
-    """Zapisz komentarz AI w cache (klucz: hash wejścia do modelu)."""
-    sql = """
-    INSERT INTO ai_comments (offer_id, range_key, metric, input_hash, text, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(offer_id, range_key, metric, input_hash) DO UPDATE SET
-        text = excluded.text,
-        created_at = excluded.created_at
-    """
+def start_collect_run(conn: sqlite3.Connection, *, started_at: datetime) -> int:
+    """Zapisz rozpoczęcie przebiegu kolektora (FR-5/FR-6); zwraca `id` przebiegu."""
     with conn:
-        conn.execute(sql, (offer_id, range_key, metric, input_hash, text, to_iso(created_at)))
+        cursor = conn.execute(
+            "INSERT INTO collect_runs (started_at, status) VALUES (?, 'running')",
+            (to_iso(started_at),),
+        )
+    return int(cursor.lastrowid or 0)
+
+
+def finish_collect_run(
+    conn: sqlite3.Connection,
+    run_id: int,
+    *,
+    finished_at: datetime,
+    status: str,
+    offers_count: int = 0,
+    inserted: int = 0,
+    error_message: str | None = None,
+) -> None:
+    """Domknij wpis przebiegu (`ok`/`error`/`auth_error`)."""
+    with conn:
+        conn.execute(
+            """
+            UPDATE collect_runs
+               SET finished_at = ?, status = ?, offers_count = ?, inserted = ?,
+                   error_message = ?
+             WHERE id = ?
+            """,
+            (to_iso(finished_at), status, offers_count, inserted, error_message, run_id),
+        )
+
+
+def recent_collect_runs(
+    conn: sqlite3.Connection, *, limit: int = 10
+) -> list[dict[str, object]]:
+    """Ostatnie przebiegi kolektora (najnowsze pierwsze)."""
+    rows = conn.execute(
+        "SELECT * FROM collect_runs ORDER BY id DESC LIMIT ?", (limit,)
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_state(conn: sqlite3.Connection, key: str) -> str | None:
+    """Trwały stan UI (np. interwał trybu ciągłego, znacznik ostatniej wizyty)."""
+    row = conn.execute("SELECT value FROM app_state WHERE key = ?", (key,)).fetchone()
+    return None if row is None else str(row["value"])
+
+
+def set_state(conn: sqlite3.Connection, key: str, value: str) -> None:
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO app_state (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (key, value),
+        )
 
 
 def log_action(
@@ -279,25 +406,6 @@ def count_snapshots(conn: sqlite3.Connection, *, offer_id: str | None = None) ->
             "SELECT COUNT(*) AS n FROM snapshots WHERE offer_id = ?", (offer_id,)
         ).fetchone()
     return int(row["n"])
-
-
-def get_cached_comment(
-    conn: sqlite3.Connection,
-    *,
-    offer_id: str,
-    range_key: str,
-    metric: Metric,
-    input_hash: str,
-) -> str | None:
-    """Komentarz AI z cache albo `None` przy pudle."""
-    row = conn.execute(
-        """
-        SELECT text FROM ai_comments
-        WHERE offer_id = ? AND range_key = ? AND metric = ? AND input_hash = ?
-        """,
-        (offer_id, range_key, metric, input_hash),
-    ).fetchone()
-    return None if row is None else str(row["text"])
 
 
 # --- czas -------------------------------------------------------------------
