@@ -12,8 +12,8 @@ CONFIG = Path(__file__).resolve().parents[1] / ".streamlit" / "config.toml"
 
 def test_theme_uses_glass_and_warm_background() -> None:
     assert "backdrop-filter" in theme.CSS
-    assert "rgba(255, 255, 255, 0.42)" in theme.CSS
-    assert "linear-gradient(134deg" in theme.CSS
+    assert theme.GLASS in theme.CSS
+    assert "linear-gradient(135deg, #e2c6b6" in theme.CSS
     assert "--vt-accent" in theme.CSS
 
 
@@ -36,8 +36,9 @@ def test_streamlit_theme_config_is_light_and_warm() -> None:
 
     palette = config["theme"]
     assert palette["base"] == "light"
-    assert palette["primaryColor"].lower() == "#d94f14"
-    assert palette["textColor"].lower() == "#3b1b0c"
+    assert palette["primaryColor"].lower() == "#f2601d"
+    assert palette["textColor"].lower() == "#2f170d"
+    assert palette["backgroundColor"].lower() == "#d2a996"
 
 
 def test_inject_renders_decor_and_style() -> None:
