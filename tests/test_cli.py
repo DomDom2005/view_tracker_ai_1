@@ -507,6 +507,7 @@ def test_comment_requires_llm_model_when_provider_is_anthropic(
 ) -> None:
     db_path = tmp_path / "demo.db"
     prepare_chart_db(db_path)
+    monkeypatch.setattr(cli, "_now", lambda: NOW)  # bez tego test zależy od dnia uruchomienia
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     monkeypatch.delenv("LLM_MODEL", raising=False)
