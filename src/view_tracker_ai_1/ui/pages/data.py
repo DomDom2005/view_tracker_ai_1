@@ -13,12 +13,13 @@ from view_tracker_ai_1.ui import components, state
 from view_tracker_ai_1.ui import runtime as runtime_module
 
 REFRESH_MESSAGE_KEY = "refresh-message"
+LOGIN_POLL_SECONDS = 5
 
 
 def render() -> None:
     current = state.current_state()
     config = state.config_for(current)
-    read_only = current.database == "prod"
+    read_only = current.database in ("prod", "demo")
     components.page_header(
         "Dane i kolektor",
         f"Baza: {config.effective_db_path} · środowisko API: {config.env}",
@@ -33,6 +34,8 @@ def render() -> None:
         fresh = collector.freshness
 
         _login_section(config)
+        if current.database == "demo":
+            components.synthetic_badge()
 
         left, middle, right = st.columns(3)
         left.metric("Ostatni snapshot", format_datetime(fresh.last_captured_at))
@@ -44,8 +47,13 @@ def render() -> None:
 
         st.divider()
         st.subheader("Odświeżanie jednorazowe")
-        if read_only:
+        if current.database == "prod":
             st.error("Baza produkcyjna jest tylko do odczytu — zbieranie jest zablokowane.")
+        elif current.database == "demo":
+            st.info(
+                "Baza demo zawiera dane syntetyczne — zbieranie z API jest zablokowane, "
+                "żeby nie mieszać źródeł. Przełącz bazę na Sandbox, żeby zbierać."
+            )
         pressed = st.button(
             "Odśwież teraz",
             type="primary",
@@ -114,21 +122,29 @@ def _login_section(config) -> None:  # noqa: ANN001 - Config bez importu w podpi
     st.info(
         f"Otwórz {authorization.verification_uri} i wpisz kod **{authorization.user_code}**."
     )
-    left, right = st.columns(2)
-    if left.button("Sprawdź zatwierdzenie", key="poll-login"):
-        try:
-            services.complete_login(auth, authorization)
-        except AuthError as exc:
-            st.warning(f"Jeszcze nie zatwierdzono: {exc}")
-        except AppError as exc:
-            st.error(f"Błąd logowania: {exc}")
-        else:
-            st.session_state.pop("auth-pending", None)
-            st.success("Zalogowano.")
-            st.rerun()
-    if right.button("Anuluj logowanie", key="cancel-login"):
+    _poll_login(auth, authorization)
+
+
+@st.fragment(run_every=LOGIN_POLL_SECONDS)
+def _poll_login(auth, authorization) -> None:  # noqa: ANN001 - obiekty auth.py
+    try:
+        services.complete_login(auth, authorization)
+    except AuthError:
+        st.caption(
+            f"Czekam na zatwierdzenie — sprawdzam co {LOGIN_POLL_SECONDS} s. "
+            "Możesz też anulować i spróbować ponownie."
+        )
+    except AppError as exc:
+        st.error(f"Błąd logowania: {exc}")
         st.session_state.pop("auth-pending", None)
-        st.rerun()
+        return
+    else:
+        st.session_state.pop("auth-pending", None)
+        st.success("Zalogowano — token zapisany.")
+        st.rerun(scope="app")
+    if st.button("Anuluj logowanie", key="cancel-login"):
+        st.session_state.pop("auth-pending", None)
+        st.rerun(scope="app")
 
 
 def _refresh(conn, config) -> None:  # noqa: ANN001 - sqlite3.Connection w warstwie UI

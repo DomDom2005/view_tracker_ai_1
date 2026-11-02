@@ -424,3 +424,21 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 | Usunięcie AI | kod + zależność + tabela usunięte z projektu, nie tylko ukryte | jeśli AI ma wrócić w 2.x — zostawiamy `ai_comments` i `anthropic` w `requirements-dev` jako opcjonalne |
 | Usunięcie CLI | `cli.py` usunięty; wejściem jest `python -m view_tracker_ai_1.ui` | jeśli chcesz zostawić tryb headless — wraca `collect` jako jedna komenda techniczna (bez pozostałych) |
 | `charts.py`/`report.py` | usunięte | jeśli chcesz zachować eksport PNG/HTML — zostają, a UI dostaje przyciski pobierania |
+---
+
+## 19. Zmiany w 2.0.1 (domknięcie §6)
+
+Wydanie **2.0.1** uzupełnia luki wykryte w przeglądzie DoD po 2.0.0:
+
+| Wymóg | Co dodano |
+|---|---|
+| FR-1 | UI_PORT jest respektowany przez python -m view_tracker_ai_1.ui (domyślnie 8501) |
+| FR-2 | logowanie odpytuje status automatycznie co 5 s (st.fragment), z możliwością anulowania |
+| FR-7 | lista ofert: szukanie po nazwie/ID, filtr statusu, sortowanie (snapshot/przyrost/nazwa), multiselect do porównania, osobny wybór detail |
+| FR-9 | metryka „oba” to **jedna figura z dwiema osiami Y** (wyświetlenia + obserwujący), nie dwa taby |
+| FR-11 | karta podsumowania pokazuje też start/end okna (było) oraz źródło danych |
+| FR-12 | kafel „Obserwujący (razem)” niezależny od wybranej metryki |
+| FR-17 | jawne „Źródło: dane z API / syntetyczne” przy podsumowaniu oferty |
+| FR-18 | zbieranie i zdarzenia zablokowane na bazie demo (niemieszanie źródeł); plakietka „DANE SYNTETYCZNE” na wykresie, stronie oferty, porównaniu i ekranie Dane |
+
+Zrzuty ekranu i przejście na realnym sandboxie pozostają zadaniami człowieka (§16).

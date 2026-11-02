@@ -35,13 +35,22 @@ METRIC_CHOICE_LABELS: Mapping[str, str] = {
 DEFAULT_DATABASE = "sandbox"
 DEFAULT_RANGE = "30d"
 DEFAULT_METRIC = "visits"
+DEFAULT_OFFER_STATUS = "all"
+DEFAULT_OFFER_SORT = "recent"
+
+OFFER_SORT_CHOICES: tuple[str, ...] = ("recent", "gain", "name")
+OFFER_SORT_LABELS: Mapping[str, str] = {
+    "recent": "ostatni snapshot",
+    "gain": "największy przyrost",
+    "name": "nazwa",
+}
 
 DEMO_DB_PATH = Path("data") / "demo.db"
 
 
 @dataclass(frozen=True, slots=True)
 class UiState:
-    """To, co trzymamy w URL: baza, wybrane oferty, zakres i metryka."""
+    """To, co trzymamy w URL: baza, wybrane oferty, zakres, metryka i filtry listy."""
 
     database: str = DEFAULT_DATABASE
     offers: tuple[str, ...] = ()
@@ -49,6 +58,10 @@ class UiState:
     metric: str = DEFAULT_METRIC
     date_from: str | None = None
     date_to: str | None = None
+    offer_query: str = ""
+    offer_status: str = DEFAULT_OFFER_STATUS
+    offer_sort: str = DEFAULT_OFFER_SORT
+    detail_offer: str | None = None
 
 
 def parse_params(params: Mapping[str, str]) -> UiState:
@@ -68,6 +81,10 @@ def parse_params(params: Mapping[str, str]) -> UiState:
     if metric not in METRIC_CHOICES:
         metric = DEFAULT_METRIC
 
+    offer_sort = params.get("sort", DEFAULT_OFFER_SORT)
+    if offer_sort not in OFFER_SORT_CHOICES:
+        offer_sort = DEFAULT_OFFER_SORT
+
     return UiState(
         database=database,
         offers=offers,
@@ -75,6 +92,11 @@ def parse_params(params: Mapping[str, str]) -> UiState:
         metric=metric,
         date_from=_parse_date(params.get("from")),
         date_to=_parse_date(params.get("to")),
+        offer_query=params.get("q", "").strip(),
+        offer_status=params.get("status", DEFAULT_OFFER_STATUS).strip()
+        or DEFAULT_OFFER_STATUS,
+        offer_sort=offer_sort,
+        detail_offer=(params.get("detail") or "").strip() or None,
     )
 
 
@@ -86,6 +108,14 @@ def params_for(state: UiState) -> dict[str, str]:
     if state.date_from and state.date_to:
         params["from"] = state.date_from
         params["to"] = state.date_to
+    if state.offer_query:
+        params["q"] = state.offer_query
+    if state.offer_status != DEFAULT_OFFER_STATUS:
+        params["status"] = state.offer_status
+    if state.offer_sort != DEFAULT_OFFER_SORT:
+        params["sort"] = state.offer_sort
+    if state.detail_offer:
+        params["detail"] = state.detail_offer
     return params
 
 
@@ -128,13 +158,17 @@ def current_state() -> UiState:
             "metric": str(stored.get("metric", DEFAULT_METRIC)),
             "from": str(stored.get("date_from", "") or ""),
             "to": str(stored.get("date_to", "") or ""),
+            "q": str(stored.get("offer_query", "") or ""),
+            "status": str(stored.get("offer_status", DEFAULT_OFFER_STATUS)),
+            "sort": str(stored.get("offer_sort", DEFAULT_OFFER_SORT)),
+            "detail": str(stored.get("detail_offer", "") or ""),
         }
     )
 
 
 def update(state: UiState) -> None:
     """Zapisz stan w URL i w `session_state` (dla testów AppTest bez query_params)."""
-    for key in ("db", "offer", "range", "metric", "from", "to"):
+    for key in ("db", "offer", "range", "metric", "from", "to", "q", "status", "sort", "detail"):
         if key in st.query_params:
             del st.query_params[key]
     for key, value in params_for(state).items():
@@ -145,6 +179,10 @@ def update(state: UiState) -> None:
     st.session_state["metric"] = state.metric
     st.session_state["date_from"] = state.date_from
     st.session_state["date_to"] = state.date_to
+    st.session_state["offer_query"] = state.offer_query
+    st.session_state["offer_status"] = state.offer_status
+    st.session_state["offer_sort"] = state.offer_sort
+    st.session_state["detail_offer"] = state.detail_offer
 
 
 def with_database(state: UiState, database: str) -> UiState:

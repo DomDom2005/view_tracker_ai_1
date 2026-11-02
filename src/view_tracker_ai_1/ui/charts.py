@@ -28,6 +28,7 @@ LINE_COLOR = "#1f77b4"
 GAIN_COLOR = "#2ca02c"
 ANOMALY_COLOR = "#d62728"
 SYNTHETIC_COLOR = "#b35c00"
+WATCHERS_COLOR = "#ff7f0e"
 EVENT_COLOR = "#7f7f7f"
 ANNOTATION_COLOR = "#9467bd"
 
@@ -46,17 +47,22 @@ EMPTY_MESSAGE = "Brak danych w wybranym przedziale — uruchom zbieranie albo wy
 def build_figure(
     view: OfferView,
     *,
-    metric: Metric,
+    metric: Metric | str,
     range_text: str,
     markers: Sequence[ChartMarker] = (),
 ) -> go.Figure:
-    """Wykres dwupanelowy: poziom licznika + dzienne przyrosty (z anomaliami)."""
+    """Wykres dwupanelowy: poziom licznika + dzienne przyrosty (z anomaliami).
+
+    Dla `metric="both"` poziom wyświetleń i obserwujących jest na dwóch osiach Y.
+    """
+    both = view.secondary_series is not None
     figure = make_subplots(
         rows=2,
         cols=1,
         shared_xaxes=True,
         row_heights=[0.68, 0.32],
         vertical_spacing=0.1,
+        specs=[[{"secondary_y": both}], [{"secondary_y": False}]],
     )
 
     if not view.points:
@@ -79,14 +85,35 @@ def build_figure(
             x=moments,
             y=values,
             mode="lines+markers",
-            name=metric_label(metric),
+            name=metric_label("visits") if both else metric_label(metric),
             line={"color": LINE_COLOR, "width": 2},
             marker={"size": 4},
             hovertemplate="%{x|%d.%m.%Y %H:%M}<br>%{y:,.0f}<extra></extra>",
         ),
         row=1,
         col=1,
+        secondary_y=False,
     )
+
+    if both and view.secondary_series is not None:
+        secondary_points = {
+            to_local(point.captured_at): point.value
+            for point in view.secondary_series.points
+        }
+        figure.add_trace(
+            go.Scatter(
+                x=list(secondary_points),
+                y=list(secondary_points.values()),
+                mode="lines+markers",
+                name=metric_label("watchers"),
+                line={"color": WATCHERS_COLOR, "width": 2, "dash": "dot"},
+                marker={"size": 4},
+                hovertemplate="%{x|%d.%m.%Y %H:%M}<br>%{y:,.0f}<extra></extra>",
+            ),
+            row=1,
+            col=1,
+            secondary_y=True,
+        )
 
     anomalies = view.summary.anomalies
     if anomalies:
@@ -105,6 +132,7 @@ def build_figure(
             ),
             row=1,
             col=1,
+            secondary_y=False,
         )
 
     if view.daily:
@@ -137,7 +165,7 @@ def build_figure(
 
 
 def build_comparison_figure(
-    indexed: Sequence[IndexedSeries], *, metric: Metric, range_text: str
+    indexed: Sequence[IndexedSeries], *, metric: Metric | str, range_text: str
 ) -> go.Figure:
     """Porównanie ofert: indeks 100 w pierwszym punkcie wspólnego okna (FR-14)."""
     figure = go.Figure()
@@ -184,7 +212,9 @@ def build_comparison_figure(
     return figure
 
 
-def _apply_layout(figure: go.Figure, view: OfferView, *, metric: Metric, range_text: str) -> None:
+def _apply_layout(
+    figure: go.Figure, view: OfferView, *, metric: Metric | str, range_text: str
+) -> None:
     summary = view.summary
     subtitle = (
         f"pokrycie: {format_percent(summary.coverage)} · "
@@ -206,8 +236,15 @@ def _apply_layout(figure: go.Figure, view: OfferView, *, metric: Metric, range_t
         hovermode="x unified",
         bargap=0.2,
     )
-    figure.update_yaxes(title_text=metric_label(metric), row=1, col=1)
-    figure.update_yaxes(title_text="przyrost", row=2, col=1)
+    if view.secondary_series is not None:
+        figure.update_yaxes(title_text=metric_label("visits"), row=1, col=1, secondary_y=False)
+        figure.update_yaxes(
+            title_text=metric_label("watchers"), row=1, col=1, secondary_y=True
+        )
+        figure.update_yaxes(title_text="przyrost wyświetleń", row=2, col=1, secondary_y=False)
+    else:
+        figure.update_yaxes(title_text=metric_label(metric), row=1, col=1)
+        figure.update_yaxes(title_text="przyrost", row=2, col=1)
     figure.update_xaxes(title_text="czas (Europe/Warsaw)", row=2, col=1)
 
     if view.series.is_synthetic:

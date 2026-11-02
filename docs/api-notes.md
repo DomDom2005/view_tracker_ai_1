@@ -47,7 +47,7 @@ Legenda: ✅ potwierdzone w dokumentacji · ⚠️ potwierdzone, ale inaczej ni�
 
 - `Accept: application/vnd.allegro.public.v1+json` (wersja beta: `application/vnd.allegro.beta.v1+json`).
 - `Content-Type: application/vnd.allegro.public.v1+json` przy `POST`/`PATCH`/`PUT`.
-- **`User-Agent: NazwaAplikacji/Wersja (+URL)`** — od **2026-06-30** żądania bez poprawnego UA są odrzucane. To nowy wymóg, którego SPEC nie przewidywał. Nasz UA: `view_tracker_ai_1/2.0.0 (+https://github.com/DomDom2005/view_tracker_ai_1)`, nadpisywalny zmienną `ALLEGRO_USER_AGENT`.
+- **`User-Agent: NazwaAplikacji/Wersja (+URL)`** — od **2026-06-30** żądania bez poprawnego UA są odrzucane. To nowy wymóg, którego SPEC nie przewidywał. Nasz UA: `view_tracker_ai_1/2.0.1 (+https://github.com/DomDom2005/view_tracker_ai_1)`, nadpisywalny zmienną `ALLEGRO_USER_AGENT`.
 - Źródła: [informacje podstawowe](https://developer.allegro.pl/tutorials/informacje-podstawowe-b21569boAI1), [FAQ](https://developer.allegro.pl/faq) — 2026-10-27.
 
 ---

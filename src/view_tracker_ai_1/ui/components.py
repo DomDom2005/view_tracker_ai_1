@@ -149,6 +149,11 @@ def range_and_metric_controls(
     return chosen_range, chosen_metric
 
 
+def synthetic_badge() -> None:
+    """Plakietka dla danych syntetycznych (FR-18: wykres, tabela, kafel)."""
+    st.markdown(":orange-badge[DANE SYNTETYCZNE]")
+
+
 def page_header(title: str, subtitle: str | None = None) -> None:
     st.title(title)
     if subtitle:

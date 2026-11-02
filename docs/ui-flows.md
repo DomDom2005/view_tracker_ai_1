@@ -11,7 +11,11 @@ więc każdy widok da się zalinkować.
 | `offer` | ID ofert rozdzielone przecinkami | wybór na stronie Oferty; 2–5 ofert na Porównaniu |
 | `range` | `24h` \| `7d` \| `30d` \| `90d` \| `all` \| `custom` | zakres czasu |
 | `from` / `to` | `YYYY-MM-DD` | granice dla `range=custom` |
-| `metric` | `visits` \| `watchers` \| `both` | metryka (na Przeglądzie tylko pierwsze dwie) |
+| `metric` | `visits` \| `watchers` \| `both` | metryka („oba” = dwie osie Y; na Przeglądzie tylko pierwsze dwie) |
+| `q` | tekst | szukanie oferty po nazwie/ID |
+| `status` | status albo `all` | filtr statusu listy ofert |
+| `sort` | `recent` \| `gain` \| `name` | sortowanie listy ofert |
+| `detail` | ID oferty | oferta otwarta w szczegółach |
 
 Przykład: `/?db=demo&offer=1001&range=30d&metric=visits`.
 
@@ -30,18 +34,22 @@ błąd bazy → banner, reszta strony nie wywraca się.
 
 ### Oferta (`/oferta`)
 
-- Wybór oferty, zakres (presety + własny z datami), metryka (wyświetlenia / obserwujący / oba
-  jako dwa taby).
+- Lista ofert: wyszukiwanie po nazwie/ID, filtr statusu, sortowanie (ostatni snapshot / przyrost /
+  nazwa), rozwijana tabela z przyrostem. Zaznaczenie 2–5 ofert (multiselect) trafia do Porównania,
+  a osobny wybór (`detail`) otwiera szczegóły jednej oferty.
+- Wybór zakresu (presety + własny z datami) i metryki (wyświetlenia / obserwujący / **oba —
+  dwie osie Y** na jednym wykresie).
 - Wykres Plotly: poziom + dzienne przyrosty, markery anomalii, pionowe znaczniki zdarzeń
   i adnotacji, podtytuł z pokryciem i liczbą punktów.
-- Karta podsumowania (min, max, średnia, przyrost, trend, nachylenie, pokrycie, punkty).
+- Karta podsumowania (start/end, min, max, średnia, przyrost, trend, nachylenie, pokrycie,
+  punkty), informacja o źródle danych, plakietka „DANE SYNTETYCZNE” przy danych demo.
 - „Co nowego od ostatniej wizyty”.
 - „Zdarzenia i adnotacje”: pobieranie zdarzeń z API, adnotacje ręczne (dodawanie/usuwanie).
 - „Alerty progowe”: trafienia i reguły (dodawanie/usuwanie).
 
-**Stany:** brak ofert; brak punktów w przedziale; mało danych (< 6 punktów lub pokrycie < 30%);
-dane syntetyczne (ostrzeżenie); PROD (formularze zablokowane); API bez scope (komunikat,
-adnotacje nadal działają).
+**Stany:** brak ofert; brak ofert po filtrach; brak punktów w przedziale; mało danych
+(< 6 punktów lub pokrycie < 30%); dane syntetyczne (plakietka + ostrzeżenie); PROD i demo
+(formularze zbierania zablokowane); API bez scope (komunikat, adnotacje działają).
 
 ### Porównanie (`/porownanie`)
 
@@ -55,14 +63,16 @@ adnotacje nadal działają).
 
 ### Dane (`/dane`)
 
-- Logowanie Allegro (device flow): kod, link, sprawdzenie zatwierdzenia, anulowanie.
+- Logowanie Allegro (device flow): kod, link, **automatyczne sprawdzanie zatwierdzenia co 5 s**
+  (fragment Streamlita) + anulowanie.
 - Kafle: ostatni snapshot, liczba snapshotów, oferty z danymi.
 - „Odśwież teraz” (jeden przebieg; komunikat o sukcesie albo `AuthError`/`ApiError`).
 - Tryb ciągły: interwał (min. 300 s, zapamiętywany), przełącznik, panel stanu
   (przebiegi, zapisane snapshoty, ostatni start, następny, ostatni błąd).
 - Tabela ostatnich przebiegów (`collect_runs`).
 
-**Stany:** PROD → wszystko zablokowane poza odczytem; brak tokena → przycisk logowania;
+**Stany:** PROD → wszystko zablokowane poza odczytem; **demo → zbieranie zablokowane**
+(komunikat o niemieszaniu źródeł, plakietka syntetycznych); brak tokena → przycisk logowania;
 tryb ciągły wyłączony po restarcie procesu.
 
 ### Ustawienia (`/ustawienia`)

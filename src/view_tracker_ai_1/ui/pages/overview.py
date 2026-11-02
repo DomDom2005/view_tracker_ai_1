@@ -79,7 +79,7 @@ def render() -> None:
             if comparison.previous.offers
             else "brak danych",
         )
-        eighth.metric("Oferty w bazie", format_number(len(offers)))
+        eighth.metric("Obserwujący (razem)", format_number(summary.levels.watchers))
 
         st.caption(
             f"{offers_label(len(offers))} · "

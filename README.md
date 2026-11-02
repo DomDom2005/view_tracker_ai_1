@@ -6,8 +6,11 @@ Projekt zaliczeniowy na studiach AI. Działa w trybie **sandbox-first**, a bez k
 da się ją uruchomić na **danych syntetycznych** (oznaczonych jako demo).
 
 > **Wersja 2.0.0** zmieniła paradygmat: zamiast komend CLI i plików wynikowych jest aplikacja
-> Streamlit. Wersja 1.0 (CLI, wykresy PNG, raport HTML, komentarz AI) jest zachowana w historii
-> gita i na tagu `v1.0`. Funkcje AI oraz eksportu plików zostały **wycofane** (patrz §10).
+Streamlit. Wersja 1.0 (CLI, wykresy PNG, raport HTML, komentarz AI) jest zachowana w historii
+gita i na tagu `v1.0`. Funkcje AI oraz eksportu plików zostały **wycofane** (patrz §10).
+> **2.0.1** domyka wymagania §6 SPEC: lista ofert z wyszukiwaniem/filtrem/sortowaniem,
+> automatyczne odpytywanie logowania, dwie osie dla metryki „oba”, blokada zbierania do bazy
+> demo i plakietki „DANE SYNTETYCZNE” w tabelach.
 
 ## 1. Cel
 
@@ -51,7 +54,7 @@ Skopiuj `.env.example` do `.env` (poza repo — plik jest w `.gitignore`) i uzup
 |---|---|---|
 | `ALLEGRO_CLIENT_ID` / `ALLEGRO_CLIENT_SECRET` | klucze aplikacji sandbox | tak (API) |
 | `ALLEGRO_ENV` | `sandbox` albo `prod` | nie (dom. `sandbox`) |
-| `ALLEGRO_USER_AGENT` | obowiązkowy nagłówek UA | nie (jest domyślny: `view_tracker_ai_1/2.0.0 (+https://github.com/DomDom2005/view_tracker_ai_1)`) |
+| `ALLEGRO_USER_AGENT` | obowiązkowy nagłówek UA | nie (jest domyślny: `view_tracker_ai_1/2.0.1 (+https://github.com/DomDom2005/view_tracker_ai_1)`) |
 | `TOKEN_STORE_PATH` | plik z tokenami | nie (dom. `~/.config/view_tracker_ai_1/tokens.json`) |
 | `DB_PATH` | baza SQLite | nie (dom. `data/sandbox.db`) |
 | `ALLOW_PROD_WRITES` | zapisy do API na produkcji | nie (dom. zablokowane) |
@@ -65,6 +68,8 @@ i zbieranie danych nie będą działać.
 ```bash
 python -m view_tracker_ai_1.ui            # http://127.0.0.1:8501
 python -m view_tracker_ai_1.ui --server.port 8600
+UI_PORT=8600 python -m view_tracker_ai_1.ui   # port z env (Linux/macOS)
+$env:UI_PORT=8600; python -m view_tracker_ai_1.ui   # PowerShell
 ```
 
 Panel boczny wybiera **bazę**: `Sandbox (API)`, `Produkcja (tylko odczyt)` albo
@@ -77,10 +82,12 @@ przesłać. Adresy widoków: `/przeglad`, `/oferta`, `/porownanie`, `/dane`, `/u
    „Dane demo (syntetyczne)” — masz pełny obraz bez konta Allegro.
 2. Albo: uzupełnij `.env`, wejdź w **Dane → „Rozpocznij logowanie”** (device flow: kod i link do
    zatwierdzenia), potem **„Odśwież teraz”**, a następnie **Przegląd** i **Oferta**.
-3. **Oferta**: wybierz ofertę, zakres i metrykę; pod wykresem jest karta podsumowania, niżej
-   „Co nowego od ostatniej wizyty”, zdarzenia/adnotacje i alerty progowe.
+3. **Oferta**: szukaj po nazwie/ID, filtruj status, sortuj po ostatnim snapshocie albo przyroście;
+   zaznacz 2–5 ofert do porównania i wybierz jedną do szczegółów. Pod wykresem jest karta
+   podsumowania, niżej „Co nowego od ostatniej wizyty”, zdarzenia/adnotacje i alerty progowe.
+   Metryka „oba” pokazuje wyświetlenia i obserwujących na **dwóch osiach Y**.
 4. **Porównanie**: wybierz 2–5 ofert (indeks 100) i porównaj okresy.
-5. **Dane**: stan kolektora, przebiegi, tryb ciągły.
+5. **Dane**: stan kolektora, przebiegi, tryb ciągły (na bazie demo zablokowany).
 
 ## 7. Pojęcia
 
@@ -102,6 +109,8 @@ przesłać. Adresy widoków: `/przeglad`, `/oferta`, `/porownanie`, `/dane`, `/u
   co interwał ≥ 300 s. Działa **tylko**, gdy aplikacja jest uruchomiona; uśpienie komputera
   oznacza lukę w danych. Po restarcie aplikacji tryb jest zawsze wyłączony (świadoma decyzja).
 - Na bazie **PROD** zbieranie i edycja (adnotacje) są zablokowane — tylko odczyt.
+- Na bazie **demo** zbieranie z API jest zablokowane, żeby dane syntetyczne nie mieszały się
+  z danymi z API (FR-18). Przełącz bazę na Sandbox, żeby zbierać.
 - Bez zbierania w tle historia jest tak gęsta, jak często klikasz „Odśwież”.
 
 ## 9. Błędy i limity API

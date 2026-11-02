@@ -10,6 +10,7 @@ from streamlit.testing.v1 import AppTest
 
 from view_tracker_ai_1 import config as config_module
 from view_tracker_ai_1 import storage
+from view_tracker_ai_1.errors import AuthError
 from view_tracker_ai_1.models import Offer, Snapshot
 from view_tracker_ai_1.ui import state
 
@@ -129,9 +130,9 @@ def test_app_renders_metrics_when_database_has_data(isolated_environment: Path) 
 
     assert not at.exception
     labels = [metric.label for metric in at.metric]
-    assert "Oferty w bazie" in labels
+    assert "Obserwujący (razem)" in labels
     values = {metric.label: metric.value for metric in at.metric}
-    assert values["Oferty w bazie"] in {"2", 2}
+    assert values["Obserwujący (razem)"] in {"4", 4}
     assert len(at.dataframe) == 1
 
 
@@ -165,12 +166,13 @@ def test_offer_page_with_data_renders_chart_and_summary(
 
     at = run_page(
         "from view_tracker_ai_1.ui.pages import offer\n"
-        "offer.render()\n"
+        "offer.render()\n",
+        detail_offer="1",
     )
 
     assert not at.exception
-    assert at.selectbox[0].label == "Oferta"
-    assert at.selectbox[0].value == "1"
+    detail = [box for box in at.selectbox if box.label == "Oferta"][0]
+    assert detail.value == "1"
     assert at.get("plotly_chart")
     labels = [metric.label for metric in at.metric]
     assert "Minimum" in labels
@@ -305,11 +307,17 @@ def test_login_section_starts_device_flow(
         return FakeAuth(), authorization
 
     monkeypatch.setattr(services, "begin_login", fake_begin)
+    monkeypatch.setattr(
+        services,
+        "complete_login",
+        lambda auth, authorization: (_ for _ in ()).throw(AuthError("pending")),
+    )
     at = run_page(
         "from view_tracker_ai_1.ui.pages import data\n"
         "data.render()\n"
     )
     [button for button in at.button if button.label == "Rozpocznij logowanie"][0].click()
+    at.run()
     at.run()
 
     assert not at.exception
@@ -361,3 +369,65 @@ def test_comparison_page_needs_two_offers() -> None:
 
     assert not at.exception
     assert any("co najmniej 2 oferty" in info.value for info in at.info)
+
+
+# --- 2.0.1: filtry listy, obie osie, blokada demo ---------------------------
+def test_offer_page_search_filters_the_list(isolated_environment: Path) -> None:
+    seed(isolated_environment)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import offer\n"
+        "offer.render()\n",
+        offer_query="lok",
+    )
+
+    assert not at.exception
+    detail = [box for box in at.selectbox if box.label == "Oferta"][0]
+    assert detail.value == "2"
+
+
+def test_offer_page_both_metrics_renders_single_chart(
+    isolated_environment: Path,
+) -> None:
+    seed(isolated_environment)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import offer\n"
+        "offer.render()\n",
+        metric="both",
+    )
+
+    assert not at.exception
+    assert len(at.get("plotly_chart")) == 1
+    assert not at.tabs
+
+
+def test_data_page_blocks_collection_on_demo(isolated_environment: Path) -> None:
+    seed(isolated_environment)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import data\n"
+        "data.render()\n",
+        db="demo",
+    )
+
+    assert not at.exception
+    assert any("dane syntetyczne" in info.value for info in at.info)
+    refresh = [button for button in at.button if button.label == "Odśwież teraz"][0]
+    assert refresh.disabled is True
+    markdown = "\n".join(element.value for element in at.markdown)
+    assert "DANE SYNTETYCZNE" in markdown
+
+
+def test_offer_page_disables_event_sync_on_demo(isolated_environment: Path) -> None:
+    seed(isolated_environment)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import offer\n"
+        "offer.render()\n",
+        db="demo",
+    )
+
+    assert not at.exception
+    sync = [button for button in at.button if button.label == "Pobierz zdarzenia"][0]
+    assert sync.disabled is True

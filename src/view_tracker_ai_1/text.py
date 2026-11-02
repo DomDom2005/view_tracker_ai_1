@@ -15,9 +15,10 @@ LOCAL_TZ = ZoneInfo("Europe/Warsaw")
 DATETIME_FORMAT = "%d.%m.%Y %H:%M"
 DATE_FORMAT = "%d.%m.%Y"
 
-METRIC_LABELS: dict[Metric, str] = {
+METRIC_LABELS: dict[str, str] = {
     "visits": "wyświetlenia",
     "watchers": "obserwujący",
+    "both": "wyświetlenia i obserwujący",
 }
 METRIC_UNITS: dict[Metric, str] = {
     "visits": "wyświetlenia",

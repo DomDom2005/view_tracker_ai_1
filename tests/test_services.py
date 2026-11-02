@@ -98,6 +98,44 @@ def test_list_offers_and_search(db: sqlite3.Connection) -> None:
     assert services.list_offers(db, status="ENDED") == []
 
 
+# --- 2.0.1: katalog ofert (FR-7) i obie osie (FR-9) -------------------------
+def test_offer_catalog_filters_and_sorts(db: sqlite3.Connection) -> None:
+    default = services.offer_catalog(db, now=NOW)
+    assert [row.item.offer.offer_id for row in default] == ["2", "1"]
+
+    assert [
+        row.item.offer.offer_id for row in services.offer_catalog(db, search="lok", now=NOW)
+    ] == ["2"]
+    assert services.offer_catalog(db, status="ENDED", now=NOW) == ()
+    assert services.offer_statuses(db) == ("ACTIVE",)
+
+    by_gain = services.offer_catalog(db, sort="gain", now=NOW)
+    assert [row.gained for row in by_gain] == [90, 10]
+
+    by_name = services.offer_catalog(db, sort="name", now=NOW)
+    assert [row.item.offer.name for row in by_name] == ["Lokówka", "Suszarka"]
+
+
+def test_offer_catalog_custom_range_falls_back_to_30d(db: sqlite3.Connection) -> None:
+    rows = services.offer_catalog(db, range_key="custom", now=NOW)
+    assert rows  # zakres własny nie ma sensu w liście; fallback zamiast wyjątku
+
+
+def test_offer_view_both_metrics_builds_secondary_series(db: sqlite3.Connection) -> None:
+    view = services.offer_view(db, "1", range_key="30d", metric="both", now=NOW)
+
+    assert view is not None
+    assert view.series.metric == "visits"
+    assert view.secondary_series is not None
+    assert view.secondary_series.metric == "watchers"
+    assert view.summary.n_points == 3
+
+
+def test_indexed_series_carries_source(db: sqlite3.Connection) -> None:
+    indexed = services.compare_offers_indexed(db, ["1", "2"], now=NOW)
+    assert [item.source for item in indexed] == ["api", "api"]
+
+
 # --- pojedyncza oferta ------------------------------------------------------
 def test_offer_view_returns_series_and_summary(db: sqlite3.Connection) -> None:
     view = services.offer_view(db, "1", range_key="30d", metric="visits", now=NOW)

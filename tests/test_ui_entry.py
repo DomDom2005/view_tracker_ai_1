@@ -11,13 +11,16 @@ import streamlit.web.cli as streamlit_cli
 from view_tracker_ai_1.ui import __main__ as ui_entry
 
 
-def test_build_argv_points_to_app_script() -> None:
+def test_build_argv_points_to_app_script(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("UI_PORT", raising=False)
     argv = ui_entry.build_argv()
+
     assert argv[0] == "streamlit"
     assert argv[1] == "run"
     assert Path(argv[2]).name == "app.py"
     assert Path(argv[2]).exists()
     assert "--server.headless=true" in argv
+    assert "--server.port=8501" in argv
 
 
 def test_build_argv_passes_extra_flags() -> None:
@@ -25,8 +28,16 @@ def test_build_argv_passes_extra_flags() -> None:
     assert argv[-2:] == ["--server.port", "8599"]
 
 
+def test_build_argv_honours_ui_port_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("UI_PORT", "8602")
+    argv = ui_entry.build_argv()
+
+    assert "--server.port=8602" in argv
+
+
 def test_main_delegates_to_streamlit_cli(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[list[str]] = []
+    monkeypatch.delenv("UI_PORT", raising=False)
 
     def fake_main() -> int:
         seen.append(list(sys.argv))

@@ -58,6 +58,9 @@ def database(config: Config) -> Iterator[sqlite3.Connection]:
 
 
 # --- oferty -----------------------------------------------------------------
+OFFER_SORT_CHOICES: tuple[str, ...] = ("recent", "gain", "name")
+
+
 @dataclass(frozen=True, slots=True)
 class OfferListItem:
     offer: Offer
@@ -94,6 +97,58 @@ def list_offers(
     return items
 
 
+@dataclass(frozen=True, slots=True)
+class OfferCatalogRow:
+    """Wiersz listy ofert: dane oferty + przyrost w bieżącym zakresie."""
+
+    item: OfferListItem
+    gained: int
+
+
+def offer_catalog(
+    conn: sqlite3.Connection,
+    *,
+    search: str = "",
+    status: str = "all",
+    sort: str = "recent",
+    range_key: str = "30d",
+    metric: Metric = "visits",
+    now: datetime,
+) -> tuple[OfferCatalogRow, ...]:
+    """Lista ofert z filtrami i sortowaniem (FR-7).
+
+    `status="all"` oznacza brak filtra; sortowanie: `recent` (ostatni snapshot),
+    `gain` (przyrost w bieżącym oknie) albo `name`.
+    """
+    chosen_status = None if status in ("", "all") else status
+    items = list_offers(conn, status=chosen_status, search=search)
+    effective_range = range_key if range_key in analytics.RANGE_KEYS else "30d"
+    since = analytics.window_start(effective_range, now)
+    gains = {
+        row.offer_id: row.gained
+        for row in queries.gains_per_offer(conn, since=since, until=now, metric=metric)
+    }
+    rows = [OfferCatalogRow(item=item, gained=gains.get(item.offer.offer_id, 0)) for item in items]
+
+    if sort == "gain":
+        rows.sort(key=lambda row: (-row.gained, row.item.offer.name.casefold()))
+    elif sort == "name":
+        rows.sort(key=lambda row: row.item.offer.name.casefold())
+    else:
+        rows.sort(
+            key=lambda row: (
+                row.item.last_captured_at is None,
+                -(row.item.last_captured_at.timestamp() if row.item.last_captured_at else 0),
+                row.item.offer.name.casefold(),
+            )
+        )
+    return tuple(rows)
+
+
+def offer_statuses(conn: sqlite3.Connection) -> tuple[str, ...]:
+    return queries.offer_statuses(conn)
+
+
 # --- pojedyncza oferta ------------------------------------------------------
 @dataclass(frozen=True, slots=True)
 class OfferView:
@@ -106,6 +161,7 @@ class OfferView:
     gaps: int
     freshness: queries.Freshness
     custom_range: bool = False
+    secondary_series: Series | None = None
 
 
 def offer_view(
@@ -113,7 +169,7 @@ def offer_view(
     offer_id: str,
     *,
     range_key: str = "30d",
-    metric: Metric = "visits",
+    metric: Metric | str = "visits",
     now: datetime,
     start: datetime | None = None,
     end: datetime | None = None,
@@ -136,7 +192,13 @@ def offer_view(
 
     snapshots = storage.get_series(conn, offer_id)
     source: Source = snapshots[0].source if snapshots else "api"
-    series = analytics.build_series(snapshots, offer_id=offer_id, metric=metric, source=source)
+    chosen: Metric = "visits" if metric not in ("visits", "watchers") else metric
+    series = analytics.build_series(snapshots, offer_id=offer_id, metric=chosen, source=source)
+    secondary = (
+        analytics.build_series(snapshots, offer_id=offer_id, metric="watchers", source=source)
+        if metric not in ("visits", "watchers")
+        else None
+    )
 
     custom = start is not None and end is not None
     if custom:
@@ -163,6 +225,7 @@ def offer_view(
         ),
         freshness=queries.freshness(conn),
         custom_range=custom,
+        secondary_series=secondary,
     )
 
 
@@ -329,9 +392,11 @@ class IndexedSeries:
     offer: Offer
     points: tuple[IndexPoint, ...]
     base_value: int
+    source: Source = "api"
 
 
-def compare_offers_indexed(    conn: sqlite3.Connection,
+def compare_offers_indexed(
+    conn: sqlite3.Connection,
     offer_ids: Sequence[str],
     *,
     range_key: str = "30d",
@@ -372,6 +437,7 @@ def compare_offers_indexed(    conn: sqlite3.Connection,
                     for point in points
                 ),
                 base_value=base,
+                source=source,
             )
         )
     return tuple(result)
@@ -690,6 +756,8 @@ __all__ = [
     "IndexPoint",
     "IndexedSeries",
     "MAX_COMPARISON_OFFERS",
+    "OFFER_SORT_CHOICES",
+    "OfferCatalogRow",
     "OfferListItem",
     "OfferSeries",
     "OfferView",
@@ -718,6 +786,8 @@ __all__ = [
     "list_offers",
     "mark_offer_seen",
     "offer_view",
+    "offer_catalog",
+    "offer_statuses",
     "open_database",
     "overview",
     "previous_period",

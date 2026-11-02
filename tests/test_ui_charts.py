@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import plotly.graph_objects as go
@@ -144,3 +145,18 @@ def test_comparison_figure_without_offers_shows_message() -> None:
     assert figure.data == ()
     annotations = " ".join(str(item.text) for item in figure.layout.annotations)
     assert "Brak ofert do porównania" in annotations
+
+
+def test_both_metrics_use_secondary_y_axis() -> None:
+    view = make_view(values=[10, 20, 30])
+    secondary = Series(offer_id="1", metric="watchers", points=view.series.points)
+    both = replace(view, secondary_series=secondary)
+
+    figure = charts.build_figure(both, metric="both", range_text="24 godziny")
+
+    names = [trace.name for trace in figure.data]
+    assert "wyświetlenia" in names
+    assert "obserwujący" in names
+    assert figure.layout.yaxis2.title.text == "obserwujący"
+    assert figure.layout.yaxis.title.text == "wyświetlenia"
+    assert figure.layout.yaxis3.title.text == "przyrost wyświetleń"

@@ -26,7 +26,7 @@ from view_tracker_ai_1.text import (
 )
 from view_tracker_ai_1.ui import charts, components, state
 
-PLOT_METRICS: tuple[Metric, ...] = ("visits", "watchers")
+__all__ = ["render"]
 
 
 def render() -> None:
@@ -45,21 +45,103 @@ def render() -> None:
             st.info("Brak ofert w bazie — najpierw zbierz dane (S4) albo wygeneruj demo.")
             return
 
-        ids = [item.offer.offer_id for item in offers]
-        names = {
-            item.offer.offer_id: f"{item.offer.name} ({item.offer.offer_id})" for item in offers
-        }
+        now = datetime.now(UTC)
+        search = st.text_input(
+            "Szukaj oferty (nazwa lub ID)",
+            value=current.offer_query,
+            key=f"offer-query-{current.database}",
+        )
+        statuses = ["all", *services.offer_statuses(conn)]
+        status_index = (
+            statuses.index(current.offer_status) if current.offer_status in statuses else 0
+        )
+        status = st.selectbox(
+            "Status",
+            statuses,
+            index=status_index,
+            format_func=lambda value: "wszystkie" if value == "all" else value,
+            key=f"offer-status-{current.offer_status}",
+        )
+        sort = st.selectbox(
+            "Sortuj według",
+            state.OFFER_SORT_CHOICES,
+            index=state.OFFER_SORT_CHOICES.index(current.offer_sort),
+            format_func=state.OFFER_SORT_LABELS.get,
+            key=f"offer-sort-{current.offer_sort}",
+        )
+        if (search, status, sort) != (
+            current.offer_query,
+            current.offer_status,
+            current.offer_sort,
+        ):
+            state.update(
+                replace(
+                    current,
+                    offer_query=search,
+                    offer_status=status,
+                    offer_sort=sort,
+                )
+            )
+            st.rerun()
 
-        current_id = current.offers[0] if current.offers and current.offers[0] in ids else ids[0]
+        catalog = services.offer_catalog(
+            conn,
+            search=search,
+            status=status,
+            sort=sort,
+            range_key=current.range_key,
+            metric=cast(Metric, "visits" if current.metric == "both" else current.metric),
+            now=now,
+        )
+        if not catalog:
+            st.info("Brak ofert spełniających filtry — zmień frazę albo status.")
+            return
+
+        ids = [row.item.offer.offer_id for row in catalog]
+        names = {
+            row.item.offer.offer_id: f"{row.item.offer.name} ({row.item.offer.offer_id})"
+            for row in catalog
+        }
+        with st.expander(f"Lista ofert ({len(catalog)})", expanded=False):
+            st.dataframe(
+                [
+                    {
+                        "Oferta": row.item.offer.name,
+                        "ID": row.item.offer.offer_id,
+                        "Status": row.item.offer.status,
+                        "Ostatni snapshot": format_datetime(row.item.last_captured_at),
+                        "Przyrost": f"+{format_number(row.gained)}",
+                    }
+                    for row in catalog
+                ],
+                hide_index=True,
+                width="stretch",
+            )
+
+        selected = st.multiselect(
+            "Oferty do porównania (2–5)",
+            ids,
+            default=[offer_id for offer_id in current.offers if offer_id in ids][
+                : services.MAX_COMPARISON_OFFERS
+            ],
+            format_func=names.get,
+            max_selections=services.MAX_COMPARISON_OFFERS,
+            key=f"compare-pick-{len(current.offers)}",
+        )
+        if tuple(selected) != tuple(offer_id for offer_id in current.offers if offer_id in ids):
+            state.update(replace(current, offers=tuple(selected)))
+            st.rerun()
+
+        detail_id = current.detail_offer if current.detail_offer in ids else ids[0]
         chosen_id = st.selectbox(
             "Oferta",
             ids,
-            index=ids.index(current_id),
+            index=ids.index(detail_id),
             format_func=names.get,
-            key=f"offer-selector-{current_id}",
+            key=f"offer-selector-{detail_id}",
         )
-        if (chosen_id,) != current.offers:
-            state.update(replace(current, offers=(chosen_id,)))
+        if chosen_id != current.detail_offer:
+            state.update(replace(current, detail_offer=chosen_id))
             st.rerun()
 
         chosen_range = st.radio(
@@ -86,7 +168,6 @@ def render() -> None:
             state.update(replace(current, metric=chosen_metric))
             st.rerun()
 
-        now = datetime.now(UTC)
         start: datetime | None = None
         end: datetime | None = None
         if chosen_range == "custom":
@@ -94,48 +175,47 @@ def render() -> None:
             if start is None:
                 return
 
-        metrics: tuple[Metric, ...] = (
-            PLOT_METRICS
-            if chosen_metric == "both"
-            else (cast(Metric, chosen_metric),)
+        view = services.offer_view(
+            conn,
+            chosen_id,
+            range_key=chosen_range,
+            metric=chosen_metric,
+            now=now,
+            start=start,
+            end=end,
         )
-
-        tabs = (
-            st.tabs([metric_label(metric) for metric in metrics])
-            if len(metrics) > 1
-            else [st.container()]
+        if view is None:
+            st.error("Nie znaleziono oferty w bazie.")
+            return
+        _render_offer(
+            conn,
+            view,
+            metric=chosen_metric,
+            range_text=range_label(chosen_range),
+            now=now,
         )
-        for tab, metric in zip(tabs, metrics, strict=True):
-            with tab:
-                view = services.offer_view(
-                    conn,
-                    chosen_id,
-                    range_key=chosen_range,
-                    metric=metric,
-                    now=now,
-                    start=start,
-                    end=end,
-                )
-                if view is None:
-                    st.error("Nie znaleziono oferty w bazie.")
-                    return
-                _render_offer(
-                    conn,
-                    view,
-                    metric=metric,
-                    range_text=range_label(chosen_range),
-                    now=now,
-                )
-                _whats_new_block(conn, chosen_id, metric=metric, now=now)
-                _events_and_annotations(conn, config, chosen_id, view, now=now)
-                _alerts_block(conn, chosen_id, now=now)
+        _whats_new_block(
+            conn,
+            chosen_id,
+            metric=cast(Metric, "visits" if chosen_metric == "both" else chosen_metric),
+            now=now,
+        )
+        _events_and_annotations(
+            conn,
+            config,
+            chosen_id,
+            view,
+            now=now,
+            allow_sync=current.database == "sandbox",
+        )
+        _alerts_block(conn, chosen_id, now=now)
 
 
 def _render_offer(
     conn: sqlite3.Connection,
     view: services.OfferView,
     *,
-    metric: Metric,
+    metric: Metric | str,
     range_text: str,
     now: datetime,
 ) -> None:
@@ -159,13 +239,21 @@ def _render_offer(
 
     summary = view.summary
     _summary_card(view, metric=metric)
+    source_text = "dane syntetyczne" if view.series.is_synthetic else "dane z API"
+    extra = ""
+    if view.secondary_series is not None and view.secondary_series.points:
+        extra = (
+            f" · obserwujący teraz: "
+            f"{format_number(view.secondary_series.points[-1].value)}"
+        )
     st.caption(
-        f"Anomalie: {len(summary.anomalies)} · luki > 2 h: {view.gaps} · "
-        f"snapshoty w bazie: {format_number(view.snapshots)} · "
+        f"Źródło: {source_text}{extra} · anomalie: {len(summary.anomalies)} · "
+        f"luki > 2 h: {view.gaps} · snapshoty w bazie: {format_number(view.snapshots)} · "
         f"aktualizacja danych: {format_datetime(view.freshness.last_captured_at)}"
     )
 
     if view.series.is_synthetic:
+        components.synthetic_badge()
         st.warning("DANE SYNTETYCZNE — to nie są dane z API, nie wyciągaj z nich wniosków o rynku.")
     if summary.n_points == 0:
         st.info(
@@ -178,7 +266,7 @@ def _render_offer(
         )
 
 
-def _summary_card(view: services.OfferView, *, metric: Metric) -> None:
+def _summary_card(view: services.OfferView, *, metric: Metric | str) -> None:
     summary = view.summary
     st.subheader(f"Podsumowanie: {metric_label(metric)}")
     if summary.n_points == 0:
@@ -266,12 +354,13 @@ def _events_and_annotations(
     view: services.OfferView,
     *,
     now: datetime,
+    allow_sync: bool,
 ) -> None:
     st.divider()
     st.subheader("Zdarzenia i adnotacje")
     since = view.points[0].captured_at if view.points else None
     until = view.points[-1].captured_at if view.points else now
-    read_only = bool(getattr(config, "is_prod", False))
+    read_only = bool(getattr(config, "is_prod", False)) or not allow_sync
 
     left, right = st.columns(2)
     with left:

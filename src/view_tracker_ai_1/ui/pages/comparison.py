@@ -100,6 +100,8 @@ def _render_comparison(
     figure = charts.build_comparison_figure(
         indexed, metric=metric, range_text=range_label(range_key)
     )
+    if any(item.source == "synthetic" for item in indexed):
+        components.synthetic_badge()
     st.plotly_chart(figure, width="stretch", key=f"comparison-{metric}")
 
     rows = services.comparison_rows(

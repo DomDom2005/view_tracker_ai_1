@@ -67,6 +67,35 @@ def test_params_for_omits_empty_offers() -> None:
     assert "offer" not in state.params_for(state.UiState())
 
 
+# --- filtry listy ofert (FR-7) ---------------------------------------------
+def test_offer_filters_roundtrip() -> None:
+    original = state.UiState(
+        offer_query="susz",
+        offer_status="ACTIVE",
+        offer_sort="gain",
+        detail_offer="1",
+    )
+    params = state.params_for(original)
+
+    assert params["q"] == "susz"
+    assert params["status"] == "ACTIVE"
+    assert params["sort"] == "gain"
+    assert params["detail"] == "1"
+    assert state.parse_params(params) == original
+
+
+def test_invalid_sort_falls_back_to_recent() -> None:
+    assert state.parse_params({"sort": "losowy"}).offer_sort == "recent"
+
+
+def test_default_filters_are_omitted_from_url() -> None:
+    params = state.params_for(state.UiState())
+    assert "q" not in params
+    assert "status" not in params
+    assert "sort" not in params
+    assert "detail" not in params
+
+
 # --- bazy -------------------------------------------------------------------
 def test_resolve_database_paths() -> None:
     assert state.resolve_db_path("sandbox") == default_db_path("sandbox")

@@ -250,6 +250,12 @@ def offer_exists(conn: sqlite3.Connection, offer_id: str) -> bool:
     return row is not None
 
 
+def offer_statuses(conn: sqlite3.Connection) -> tuple[str, ...]:
+    """Statusy ofert obecne w bazie (do filtra listy)."""
+    rows = conn.execute("SELECT DISTINCT status FROM offers ORDER BY status").fetchall()
+    return tuple(str(row["status"]) for row in rows)
+
+
 def offers_at(conn: sqlite3.Connection, at: datetime) -> int:
     """Liczba ofert, które mają snapshot dokładnie w chwili `at` (np. jeden przebieg)."""
     row = conn.execute(
