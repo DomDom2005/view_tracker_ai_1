@@ -1,0 +1,81 @@
+# Ekrany i przepływy UI (2.0)
+
+Stan i przejścia aplikacji Streamlit (SPEC-2.0 §8). Wszystkie strony czytają stan z URL,
+więc każdy widok da się zalinkować.
+
+## Parametry URL
+
+| Parametr | Wartości | Znaczenie |
+|---|---|---|
+| `db` | `sandbox` \| `prod` \| `demo` | wybrana baza (prod = tylko odczyt) |
+| `offer` | ID ofert rozdzielone przecinkami | wybór na stronie Oferty; 2–5 ofert na Porównaniu |
+| `range` | `24h` \| `7d` \| `30d` \| `90d` \| `all` \| `custom` | zakres czasu |
+| `from` / `to` | `YYYY-MM-DD` | granice dla `range=custom` |
+| `metric` | `visits` \| `watchers` \| `both` | metryka (na Przeglądzie tylko pierwsze dwie) |
+
+Przykład: `/?db=demo&offer=1001&range=30d&metric=visits`.
+
+## Strony
+
+### Przegląd (`/przeglad`)
+
+- Przełączniki: zakres, metryka (bez „oba”).
+- 8 kafli: poziom metryki, przyrost w oknie z deltą vs poprzedni okres, mediana przyrostu,
+  oferty z danymi, oferty ze spadkiem, spadki licznika, poprzedni okres, oferty w bazie.
+- Banner alertów progowych (do 3 + „więcej”).
+- Ranking ofert z linkiem „pokaż” do strony Oferty z tym samym zakresem.
+
+**Stany:** brak ofert → komunikat z instrukcją; brak przyrostów → komunikat w miejscu rankingu;
+błąd bazy → banner, reszta strony nie wywraca się.
+
+### Oferta (`/oferta`)
+
+- Wybór oferty, zakres (presety + własny z datami), metryka (wyświetlenia / obserwujący / oba
+  jako dwa taby).
+- Wykres Plotly: poziom + dzienne przyrosty, markery anomalii, pionowe znaczniki zdarzeń
+  i adnotacji, podtytuł z pokryciem i liczbą punktów.
+- Karta podsumowania (min, max, średnia, przyrost, trend, nachylenie, pokrycie, punkty).
+- „Co nowego od ostatniej wizyty”.
+- „Zdarzenia i adnotacje”: pobieranie zdarzeń z API, adnotacje ręczne (dodawanie/usuwanie).
+- „Alerty progowe”: trafienia i reguły (dodawanie/usuwanie).
+
+**Stany:** brak ofert; brak punktów w przedziale; mało danych (< 6 punktów lub pokrycie < 30%);
+dane syntetyczne (ostrzeżenie); PROD (formularze zablokowane); API bez scope (komunikat,
+adnotacje nadal działają).
+
+### Porównanie (`/porownanie`)
+
+- Multiselect 2–5 ofert, zakres, metryka (przy „oba” dwa taby).
+- Wykres indeksu 100 + tabela (start/koniec okna, przyrost, spadki, punkty).
+- Lista ofert pominiętych (brak danych albo poziom startowy 0).
+- Zakładka „Porównanie okresów”: bieżący vs poprzedni dla całego katalogu albo jednej oferty.
+
+**Stany:** mniej niż 2 oferty → komunikat; brak danych z poprzedniego okresu → brak delty;
+`range=custom` → porównanie okresów niedostępne (komunikat).
+
+### Dane (`/dane`)
+
+- Logowanie Allegro (device flow): kod, link, sprawdzenie zatwierdzenia, anulowanie.
+- Kafle: ostatni snapshot, liczba snapshotów, oferty z danymi.
+- „Odśwież teraz” (jeden przebieg; komunikat o sukcesie albo `AuthError`/`ApiError`).
+- Tryb ciągły: interwał (min. 300 s, zapamiętywany), przełącznik, panel stanu
+  (przebiegi, zapisane snapshoty, ostatni start, następny, ostatni błąd).
+- Tabela ostatnich przebiegów (`collect_runs`).
+
+**Stany:** PROD → wszystko zablokowane poza odczytem; brak tokena → przycisk logowania;
+tryb ciągły wyłączony po restarcie procesu.
+
+### Ustawienia (`/ustawienia`)
+
+- Wybrana baza i jej ścieżka, środowisko API, adresy API/auth.
+- Ścieżka tokenów (bez zawartości), poziom logów, wersja aplikacji i schematu.
+- Generator danych demo (90 dni) z komunikatem o zapisie.
+
+## Zasady zachowania
+
+- Każda zmiana przełącznika trafia do URL i powoduje rerun; stan jest odtwarzalny z linku.
+- Długie operacje (pobranie zdarzeń, odświeżenie, generowanie demo) pokazują wynik komunikatem,
+  a błędy domainowe (`AppError`) nie wywalają strony.
+- UI nie pokazuje tokenów, nie zapisuje ich w URL ani w `session_state`.
+- Cache danych opiera się na `data_version = (max(captured_at), count)` — po zbieraniu widok
+  pokazuje świeże dane.

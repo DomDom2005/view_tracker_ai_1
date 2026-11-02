@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from statistics import median
 
-from view_tracker_ai_1 import analytics, collector, events, queries, storage
+from view_tracker_ai_1 import analytics, collector, demo, events, queries, storage
 from view_tracker_ai_1.auth import DeviceAuthorization, DeviceFlowAuth, Tokens, TokenStatus
 from view_tracker_ai_1.client import AllegroClient
 from view_tracker_ai_1.config import Config
@@ -534,6 +534,20 @@ def alert_hits(
     return events.evaluate_alerts(conn, now=now, metric=metric)
 
 
+# --- dane demo --------------------------------------------------------------
+def seed_demo(
+    conn: sqlite3.Connection,
+    *,
+    seed: int = demo.DEFAULT_SEED,
+    days: int = demo.DEFAULT_DAYS,
+    end: datetime | None = None,
+    now: datetime | None = None,
+) -> demo.SeedResult:
+    """Wygeneruj dane syntetyczne do bazy demo (FR-18); odmawia mieszania z API."""
+    moment = end if end is not None else demo.default_end(now)
+    return demo.seed_demo_database(conn, seed=seed, days=days, end=moment)
+
+
 # --- kolektor ---------------------------------------------------------------
 @dataclass(frozen=True, slots=True)
 class RefreshResult:
@@ -708,6 +722,7 @@ __all__ = [
     "overview",
     "previous_period",
     "refresh_once",
+    "seed_demo",
     "sync_offer_events",
     "token_status",
     "whats_new",

@@ -382,7 +382,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 **S5 — Zdarzenia i alerty.** *(wykonany 2026-11-02; endpoint potwierdzony w `docs/api-notes.md` §9, kształt odpowiedzi i scope nadal `TODO(verify)`)* `events.py`, weryfikacja `GET /sale/offer-events` w dokumentacji, nanoszenie zdarzeń i adnotacji, „co nowego”, reguły alertów.
 *Bramka:* testy parsowania i deduplikacji; dokumentacja potwierdzona w `docs/api-notes.md`; przy braku dostępu do endpointu — adnotacje ręczne działają, a `TODO(verify)` zostaje opisane.
 
-**S6 — Demo, dokumentacja, QA.** Generator demo w UI, dokumenty §14, zrzuty ekranu (człowiek), przegląd DoD, `git tag v2.0.0`.
+**S6 — Demo, dokumentacja, QA.** *(wykonany 2026-11-02)* Generator demo w UI, dokumenty §14, zrzuty ekranu (człowiek), przegląd DoD, `git tag v2.0.0`.
 *Bramka:* aplikacja spełnia §2; README kompletny; brak sekretów w historii; wszystkie `TODO(verify)` rozwiązane albo opisane.
 
 **Definition of Done 2.0.0:** czysta instalacja (`pip install -r requirements-dev.txt`, `pip install -e .`) i start aplikacji na czystej bazie; testy zielone; każda funkcja z §6 działa w UI; brak AI i eksportu; migracja v1→v2 przetestowana; README z instrukcją; tag `v2.0.0`.

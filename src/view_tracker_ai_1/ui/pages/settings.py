@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import streamlit as st
 
-from view_tracker_ai_1 import __version__, storage
+from view_tracker_ai_1 import __version__, services, storage
 from view_tracker_ai_1.config import DEFAULT_ENV, DEFAULT_LOG_LEVEL
+from view_tracker_ai_1.errors import AppError
 from view_tracker_ai_1.ui import components, state
 
 
@@ -43,7 +44,30 @@ def render() -> None:
     st.caption("Migracja ze schematu v1 wykonuje się automatycznie z kopią pliku `.bak-…`.")
 
     st.subheader("Dane demo")
-    st.info(
-        "Generator danych syntetycznych (`scripts/seed_demo_data.py`) ma wejście w UI "
-        "w etapie S6. Do tego czasu uruchamia się go z terminala."
+    demo_path = state.resolve_db_path("demo")
+    st.write(f"Baza demo: `{demo_path}`")
+    st.caption(
+        "Pięć ofert z wzorcami: wzrost, spadek, plateau, anomalia licznika i luki w danych. "
+        "Wszystko z `source='synthetic'`; generator odmawia dopisania do bazy z danymi z API."
+    )
+    if st.button("Wygeneruj dane demo (90 dni)", disabled=current.database == "prod"):
+        demo_config = config.with_overrides(db_path=demo_path)
+        try:
+            demo_conn = services.open_database(demo_config)
+        except AppError as exc:
+            st.error(f"Nie mogę otworzyć bazy demo: {exc}")
+        else:
+            try:
+                result = services.seed_demo(demo_conn)
+            except AppError as exc:
+                st.error(f"Nie mogę wygenerować danych demo: {exc}")
+            else:
+                st.success(
+                    f"Zapisano {result.snapshots} snapshotów dla {result.offers} ofert "
+                    f"do `{demo_path}`. Wybierz bazę „Dane demo (syntetyczne)” w panelu bocznym."
+                )
+            finally:
+                demo_conn.close()
+    st.caption(
+        "Ten sam generator z terminala: `python scripts/seed_demo_data.py --db data/demo.db`."
     )

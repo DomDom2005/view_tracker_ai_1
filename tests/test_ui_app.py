@@ -37,6 +37,14 @@ def isolated_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pat
 
     db_path = tmp_path / "ui.db"
     monkeypatch.setattr(state, "resolve_db_path", lambda name: db_path)
+    original_config_for = state.config_for
+    monkeypatch.setattr(
+        state,
+        "config_for",
+        lambda current: original_config_for(current).with_overrides(
+            token_store_path=tmp_path / "tokens.json"
+        ),
+    )
     return db_path
 
 
@@ -266,12 +274,46 @@ def test_data_page_renders_collector_controls() -> None:
     labels = [metric.label for metric in at.metric]
     assert "Snapshoty" in labels
     assert any("Brak zapisanych przebiegów" in info.value for info in at.info)
-    assert [button.label for button in at.button] == ["Odśwież teraz"]
+    buttons = [button.label for button in at.button]
+    assert "Odśwież teraz" in buttons
+    assert "Rozpocznij logowanie" in buttons
     assert [toggle.label for toggle in at.toggle] == [
         "Zbieraj cyklicznie, gdy aplikacja działa"
     ]
     assert at.number_input
     assert at.number_input[0].value >= 300
+
+
+def test_login_section_starts_device_flow(
+    isolated_environment: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from view_tracker_ai_1 import services
+    from view_tracker_ai_1.auth import DeviceAuthorization
+
+    class FakeAuth:
+        def poll(self, authorization):  # noqa: ANN001, ANN202 - stub
+            return None
+
+    def fake_begin(config):  # noqa: ANN001, ANN202 - stub
+        authorization = DeviceAuthorization(
+            device_code="device",
+            user_code="ABC-777",
+            verification_uri="https://allegro.pl/skojarz-aplikacje",
+            expires_in=600,
+            interval=5,
+        )
+        return FakeAuth(), authorization
+
+    monkeypatch.setattr(services, "begin_login", fake_begin)
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import data\n"
+        "data.render()\n"
+    )
+    [button for button in at.button if button.label == "Rozpocznij logowanie"][0].click()
+    at.run()
+
+    assert not at.exception
+    assert any("ABC-777" in info.value for info in at.info)
 
 
 def test_refresh_button_reports_result(
@@ -294,7 +336,7 @@ def test_refresh_button_reports_result(
         "from view_tracker_ai_1.ui.pages import data\n"
         "data.render()\n"
     )
-    at.button[0].click().run()
+    [button for button in at.button if button.label == "Odśwież teraz"][0].click().run()
 
     assert not at.exception
     assert any("Zapisano 5" in success.value for success in at.success)

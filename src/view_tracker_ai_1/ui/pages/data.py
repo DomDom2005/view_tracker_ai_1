@@ -32,6 +32,8 @@ def render() -> None:
         collector = services.collector_state(conn)
         fresh = collector.freshness
 
+        _login_section(config)
+
         left, middle, right = st.columns(3)
         left.metric("Ostatni snapshot", format_datetime(fresh.last_captured_at))
         middle.metric("Snapshoty", format_number(fresh.snapshots))
@@ -79,6 +81,54 @@ def render() -> None:
             )
         else:
             st.info("Brak zapisanych przebiegów — użyj „Odśwież teraz”.")
+
+
+def _login_section(config) -> None:  # noqa: ANN001 - Config bez importu w podpisie UI
+    st.subheader("Logowanie Allegro")
+    try:
+        status = services.token_status(config)
+    except AppError as exc:
+        st.warning(f"Nie mogę sprawdzić tokena: {exc}")
+        return
+
+    if status.logged_in and not status.expired:
+        st.success(f"Token ważny do {format_datetime(status.expires_at)}.")
+        return
+    if status.logged_in and status.expired:
+        st.warning("Token wygasł — zaloguj się ponownie.")
+
+    pending = st.session_state.get("auth-pending")
+    if not pending:
+        if st.button("Rozpocznij logowanie", key="begin-login"):
+            try:
+                pair = services.begin_login(config)
+            except AppError as exc:
+                st.error(f"Nie mogę rozpocząć logowania: {exc}")
+            else:
+                st.session_state["auth-pending"] = pair
+                st.rerun()
+        st.caption("Device flow: aplikacja poprosi o kod, który wpiszesz na stronie Allegro.")
+        return
+
+    auth, authorization = pending
+    st.info(
+        f"Otwórz {authorization.verification_uri} i wpisz kod **{authorization.user_code}**."
+    )
+    left, right = st.columns(2)
+    if left.button("Sprawdź zatwierdzenie", key="poll-login"):
+        try:
+            services.complete_login(auth, authorization)
+        except AuthError as exc:
+            st.warning(f"Jeszcze nie zatwierdzono: {exc}")
+        except AppError as exc:
+            st.error(f"Błąd logowania: {exc}")
+        else:
+            st.session_state.pop("auth-pending", None)
+            st.success("Zalogowano.")
+            st.rerun()
+    if right.button("Anuluj logowanie", key="cancel-login"):
+        st.session_state.pop("auth-pending", None)
+        st.rerun()
 
 
 def _refresh(conn, config) -> None:  # noqa: ANN001 - sqlite3.Connection w warstwie UI
