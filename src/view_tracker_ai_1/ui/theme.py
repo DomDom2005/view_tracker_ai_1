@@ -11,15 +11,14 @@ from __future__ import annotations
 
 import streamlit as st
 
-# Paleta z referencji: wyciszone różowo-beżowe tło, jasne pomarańczowe kule i koralowe
-# pierścienie, szkło ledwie widoczne; atrament w brązach dla czytelności tabel i formularzy.
-INK = "#2f170d"
-INK_SOFT = "rgba(47, 23, 13, 0.64)"
-GLASS = "rgba(255, 244, 236, 0.24)"
-GLASS_STRONG = "rgba(255, 246, 238, 0.4)"
-LINE = "rgba(255, 255, 255, 0.55)"
-ACCENT = "#f2601d"
-ACCENT_2 = "#ff9a5c"
+# Paleta: ciepłe piaski i pomarańcze, atrament w brązach (czytelność na jasnym szkle).
+INK = "#3b1b0c"
+INK_SOFT = "rgba(59, 27, 12, 0.66)"
+GLASS = "rgba(255, 255, 255, 0.42)"
+GLASS_STRONG = "rgba(255, 255, 255, 0.66)"
+LINE = "rgba(255, 255, 255, 0.65)"
+ACCENT = "#d94f14"
+ACCENT_2 = "#ff8a3d"
 
 DECOR = """
 <div class="vt-decor" aria-hidden="true">
@@ -44,14 +43,14 @@ CSS = f"""
   --vt-radius: 26px;
 }}
 
-/* --- tło: wyciszony różowo-beżowy gradient + kule i pierścienie jak w referencji --- */
+/* --- tło: ciepły gradient + rozmyte kule i pierścienie --- */
 [data-testid="stAppViewContainer"], .stApp {{
   background:
-    radial-gradient(1000px 700px at 8% 2%, rgba(255, 246, 238, 0.55), transparent 60%),
-    radial-gradient(840px 840px at 92% 6%, rgba(255, 138, 74, 0.8), transparent 62%),
-    radial-gradient(940px 940px at 86% 102%, rgba(233, 83, 26, 0.62), transparent 66%),
-    radial-gradient(700px 700px at 0% 90%, rgba(255, 180, 132, 0.55), transparent 62%),
-    linear-gradient(135deg, #e2c6b6 0%, #d2a996 44%, #bd8b77 100%);
+    radial-gradient(900px 620px at 12% 6%, rgba(255, 255, 255, 0.55), transparent 62%),
+    radial-gradient(760px 760px at 92% 10%, rgba(255, 150, 72, 0.85), transparent 63%),
+    radial-gradient(820px 820px at 82% 96%, rgba(222, 84, 24, 0.72), transparent 64%),
+    radial-gradient(620px 620px at 4% 92%, rgba(255, 193, 132, 0.85), transparent 61%),
+    linear-gradient(134deg, #fbe5d1 0%, #f6c49e 42%, #ef9b63 100%);
   background-attachment: fixed;
 }}
 
@@ -65,44 +64,44 @@ CSS = f"""
 .vt-orb, .vt-ring {{
   position: absolute;
   display: block;
-  filter: blur(30px);
-  opacity: 0.78;
+  filter: blur(26px);
+  opacity: 0.85;
   animation: vt-float 26s ease-in-out infinite alternate;
 }}
 .vt-orb-a {{
-  width: 300px; height: 300px; border-radius: 50%;
-  left: -95px; top: 17%;
-  background: radial-gradient(circle at 34% 30%, #ffe3c6, #ff8f4a 58%, rgba(255, 124, 56, 0.22));
+  width: 320px; height: 320px; border-radius: 50%;
+  left: -90px; top: 16%;
+  background: radial-gradient(circle at 34% 30%, #ffd9b0, #ff8b3d 58%, rgba(255, 120, 40, 0.25));
 }}
 .vt-orb-b {{
-  width: 540px; height: 540px; border-radius: 50%;
-  right: -170px; top: -150px;
-  background: radial-gradient(circle at 40% 38%, #ffb27a, #f4661f 60%, rgba(214, 70, 18, 0.18));
+  width: 520px; height: 520px; border-radius: 50%;
+  right: -160px; top: -140px;
+  background: radial-gradient(circle at 40% 38%, #ffb877, #f26a22 60%, rgba(226, 84, 24, 0.2));
   animation-delay: -8s;
 }}
 .vt-orb-c {{
-  width: 250px; height: 250px; border-radius: 50%;
-  left: 57%; bottom: -85px;
-  background: radial-gradient(circle at 38% 32%, #ffc79a, #e85a1c 62%, rgba(206, 68, 16, 0.18));
+  width: 240px; height: 240px; border-radius: 50%;
+  left: 58%; bottom: -80px;
+  background: radial-gradient(circle at 38% 32%, #ffc48f, #e85f1d 62%, rgba(214, 74, 18, 0.2));
   animation-delay: -14s;
 }}
 .vt-ring {{
   border-radius: 50%;
-  filter: blur(6px);
+  filter: blur(7px);
   background: transparent;
 }}
 .vt-ring-a {{
-  width: 200px; height: 200px;
-  left: 21%; top: 4%;
-  border: 24px solid rgba(255, 203, 166, 0.95);
-  box-shadow: 0 0 60px rgba(255, 166, 110, 0.75) inset;
+  width: 190px; height: 190px;
+  left: 22%; top: 5%;
+  border: 22px solid rgba(255, 214, 176, 0.95);
+  box-shadow: 0 0 60px rgba(255, 170, 110, 0.7) inset;
   transform: rotate(-18deg);
 }}
 .vt-ring-b {{
-  width: 160px; height: 160px;
-  right: 19%; bottom: 3%;
-  border: 21px solid rgba(255, 186, 138, 0.92);
-  box-shadow: 0 0 50px rgba(238, 116, 52, 0.62) inset;
+  width: 150px; height: 150px;
+  right: 20%; bottom: 4%;
+  border: 20px solid rgba(255, 186, 128, 0.9);
+  box-shadow: 0 0 50px rgba(240, 120, 50, 0.6) inset;
   transform: rotate(24deg);
   animation-delay: -11s;
 }}
@@ -123,15 +122,15 @@ footer {{ visibility: hidden; }}
   margin-top: 1.4rem;
   margin-bottom: 2.4rem;
   padding: 2.4rem 2.6rem 2.8rem;
-  background: linear-gradient(160deg, rgba(255, 247, 240, 0.34), rgba(255, 240, 230, 0.16));
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.28));
   border: 1px solid var(--vt-line);
   border-radius: var(--vt-radius);
-  box-shadow: 0 22px 60px rgba(90, 40, 18, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: 0 24px 70px rgba(120, 48, 12, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(22px) saturate(140%);
   -webkit-backdrop-filter: blur(22px) saturate(140%);
 }}
 @supports not (backdrop-filter: blur(2px)) {{
-  .block-container {{ background: rgba(236, 214, 199, 0.94); }}
+  .block-container {{ background: rgba(255, 245, 236, 0.9); }}
 }}
 
 /* --- typografia --- */
@@ -179,7 +178,7 @@ html, body, [class*="css"] {{
 
 /* --- kafle, kontenery z ramką, expandery: szkło --- */
 [data-testid="stMetric"] {{
-  background: linear-gradient(150deg, rgba(255, 248, 242, 0.3), rgba(255, 240, 230, 0.16));
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.34));
   border: 1px solid var(--vt-line);
   border-radius: 18px;
   padding: 0.9rem 1rem;
@@ -192,7 +191,7 @@ html, body, [class*="css"] {{
 [data-testid="stMetricDelta"] {{ font-weight: 600; }}
 
 [data-testid="stVerticalBlockBorderWrapper"] {{
-  background: linear-gradient(160deg, rgba(255, 248, 242, 0.36), rgba(255, 240, 230, 0.16));
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.26));
   border: 1px solid var(--vt-line);
   border-radius: 20px;
   box-shadow: 0 14px 36px rgba(120, 48, 12, 0.1);
@@ -200,7 +199,7 @@ html, body, [class*="css"] {{
   -webkit-backdrop-filter: blur(16px);
 }}
 [data-testid="stExpander"] details {{
-  background: rgba(255, 247, 240, 0.28);
+  background: rgba(255, 255, 255, 0.4);
   border: 1px solid var(--vt-line);
   border-radius: 16px;
   backdrop-filter: blur(12px);
@@ -211,8 +210,8 @@ html, body, [class*="css"] {{
 /* --- przyciski --- */
 .stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {{
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.62);
-  background: rgba(255, 247, 240, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.55);
   color: var(--vt-ink);
   font-weight: 600;
   padding: 0.45rem 1.25rem;
@@ -237,7 +236,7 @@ html, body, [class*="css"] {{
 [data-testid="stTabs"] [role="tablist"] {{
   gap: 0.35rem;
   padding: 0.3rem;
-  background: rgba(255, 248, 242, 0.26);
+  background: rgba(255, 255, 255, 0.34);
   border: 1px solid var(--vt-line);
   border-radius: 999px;
   backdrop-filter: blur(12px);
@@ -260,8 +259,8 @@ html, body, [class*="css"] {{
 [data-baseweb="input"] > div,
 [data-baseweb="textarea"] > div,
 [data-baseweb="select"] > div {{
-  background: rgba(255, 250, 244, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 12px;
   color: var(--vt-ink);
   backdrop-filter: blur(8px);
@@ -275,7 +274,7 @@ html, body, [class*="css"] {{
 
 /* --- tabele: jasny szklany kafel wokół siatki --- */
 [data-testid="stDataFrame"] {{
-  background: rgba(255, 250, 246, 0.7);
+  background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--vt-line);
   border-radius: 16px;
   padding: 0.35rem;
@@ -285,7 +284,7 @@ html, body, [class*="css"] {{
 
 /* --- pasek boczny --- */
 [data-testid="stSidebar"] {{
-  background: linear-gradient(180deg, rgba(255, 246, 238, 0.72), rgba(240, 213, 195, 0.56));
+  background: linear-gradient(180deg, rgba(255, 246, 238, 0.86), rgba(255, 233, 214, 0.72));
   border-right: 1px solid rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
