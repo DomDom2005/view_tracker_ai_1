@@ -99,9 +99,10 @@ przesłać. Adresy widoków: `/przeglad`, `/oferta`, `/porownanie`, `/dane`, `/u
 2. Albo: uzupełnij `.env`, wejdź w **Dane → „Rozpocznij logowanie”** (device flow: kod i link do
    zatwierdzenia), potem **„Odśwież teraz”**, a następnie **Przegląd** i **Oferta**.
 3. **Oferta**: szukaj po nazwie/ID, filtruj status, sortuj po ostatnim snapshocie albo przyroście;
-   zaznacz 2–5 ofert do porównania i wybierz jedną do szczegółów. Pod wykresem jest karta
-   podsumowania, niżej „Co nowego od ostatniej wizyty”, zdarzenia/adnotacje i alerty progowe.
-   Metryka „oba” pokazuje wyświetlenia i obserwujących na **dwóch osiach Y**.
+   wybierz jedną ofertę do szczegółów. Pod wykresem jest karta podsumowania, niżej „Co nowego
+   od ostatniej wizyty”, zdarzenia/adnotacje i alerty progowe. Metryka „oba” pokazuje wyświetlenia
+   i obserwujących na **dwóch osiach Y**. Wielokrotny wybór ofert jest na stronie **Porównanie** —
+   panel Oferta obsługuje jedną ofertę.
 4. **Porównanie**: wybierz 2–5 ofert (indeks 100) i porównaj okresy.
 5. **Dane**: stan kolektora, przebiegi, tryb ciągły (na bazie demo zablokowany).
 

@@ -118,20 +118,6 @@ def render() -> None:
                 width="stretch",
             )
 
-        selected = st.multiselect(
-            "Oferty do porównania (2–5)",
-            ids,
-            default=[offer_id for offer_id in current.offers if offer_id in ids][
-                : services.MAX_COMPARISON_OFFERS
-            ],
-            format_func=names.get,
-            max_selections=services.MAX_COMPARISON_OFFERS,
-            key=f"compare-pick-{len(current.offers)}",
-        )
-        if tuple(selected) != tuple(offer_id for offer_id in current.offers if offer_id in ids):
-            state.update(replace(current, offers=tuple(selected)))
-            st.rerun()
-
         detail_id = current.detail_offer if current.detail_offer in ids else ids[0]
         chosen_id = st.selectbox(
             "Oferta",

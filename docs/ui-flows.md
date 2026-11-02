@@ -35,8 +35,8 @@ błąd bazy → banner, reszta strony nie wywraca się.
 ### Oferta (`/oferta`)
 
 - Lista ofert: wyszukiwanie po nazwie/ID, filtr statusu, sortowanie (ostatni snapshot / przyrost /
-  nazwa), rozwijana tabela z przyrostem. Zaznaczenie 2–5 ofert (multiselect) trafia do Porównania,
-  a osobny wybór (`detail`) otwiera szczegóły jednej oferty.
+  nazwa), rozwijana tabela z przyrostem. Wybór oferty do szczegółów (`detail`); wielokrotny wybór
+  do porównania jest **tylko na stronie Porównanie**.
 - Wybór zakresu (presety + własny z datami) i metryki (wyświetlenia / obserwujący / **oba —
   dwie osie Y** na jednym wykresie).
 - Wykres Plotly: poziom + dzienne przyrosty, markery anomalii, pionowe znaczniki zdarzeń

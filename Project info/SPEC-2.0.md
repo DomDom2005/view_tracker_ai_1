@@ -433,7 +433,7 @@ Wydanie **2.0.1** uzupełnia luki wykryte w przeglądzie DoD po 2.0.0:
 |---|---|
 | FR-1 | UI_PORT jest respektowany przez python -m view_tracker_ai_1.ui (domyślnie 8501) |
 | FR-2 | logowanie odpytuje status automatycznie co 5 s (st.fragment), z możliwością anulowania |
-| FR-7 | lista ofert: szukanie po nazwie/ID, filtr statusu, sortowanie (snapshot/przyrost/nazwa), multiselect do porównania, osobny wybór detail |
+| FR-7 | lista ofert: szukanie po nazwie/ID, filtr statusu, sortowanie (snapshot/przyrost/nazwa), osobny wybór detail; multiselect 2–5 ofert wyłącznie na stronie Porównanie (wcześniej także na Ofercie — usunięty na życzenie właściciela) |
 | FR-9 | metryka „oba” to **jedna figura z dwiema osiami Y** (wyświetlenia + obserwujący), nie dwa taby |
 | FR-11 | karta podsumowania pokazuje też start/end okna (było) oraz źródło danych |
 | FR-12 | kafel „Obserwujący (razem)” niezależny od wybranej metryki |

@@ -147,6 +147,15 @@ def test_comparison_figure_without_offers_shows_message() -> None:
     assert "Brak ofert do porównania" in annotations
 
 
+def test_gain_bars_use_requested_lime_color() -> None:
+    view = make_view(values=[10, 20, 30])
+
+    figure = charts.build_figure(view, metric="visits", range_text="24 godziny")
+
+    gains = [trace for trace in figure.data if trace.name == "dzienny przyrost"][0]
+    assert gains.marker.color == "#9ed914"
+
+
 def test_both_metrics_use_secondary_y_axis() -> None:
     view = make_view(values=[10, 20, 30])
     secondary = Series(offer_id="1", metric="watchers", points=view.series.points)

@@ -25,7 +25,7 @@ from view_tracker_ai_1.text import (
 )
 
 LINE_COLOR = "#b23a17"
-GAIN_COLOR = "#c98212"
+GAIN_COLOR = "#9ed914"
 ANOMALY_COLOR = "#b91c1c"
 SYNTHETIC_COLOR = "#9a3412"
 WATCHERS_COLOR = "#6d4fc4"
