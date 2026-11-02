@@ -5,14 +5,23 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 
 import streamlit as st
 
 from view_tracker_ai_1 import __version__, queries, services, storage
 from view_tracker_ai_1.config import Config
 from view_tracker_ai_1.errors import AppError, StorageError
-from view_tracker_ai_1.text import format_datetime
-from view_tracker_ai_1.ui.state import DATABASE_LABELS, DATABASE_NAMES, UiState, with_database
+from view_tracker_ai_1.text import format_datetime, range_label
+from view_tracker_ai_1.ui.state import (
+    DATABASE_LABELS,
+    DATABASE_NAMES,
+    METRIC_CHOICE_LABELS,
+    METRIC_CHOICES,
+    RANGE_CHOICES,
+    UiState,
+    with_database,
+)
 
 ENV_LABELS = {"sandbox": "SANDBOX", "prod": "PROD", "demo": "DEMO"}
 
@@ -103,6 +112,39 @@ def _freshness_block(config: Config) -> None:
         return
     st.markdown(f"**Ostatni snapshot:** {format_datetime(fresh.last_captured_at)}")
     st.caption(f"{fresh.offers} ofert · {fresh.snapshots} snapshotów")
+
+
+def range_and_metric_controls(
+    current: UiState, *, allow_both: bool = True
+) -> tuple[str, str]:
+    """Wspólne przełączniki zakresu i metryki; zmiana od razu trafia do URL."""
+    from view_tracker_ai_1.ui import state as state_module
+
+    chosen_range = st.radio(
+        "Zakres",
+        RANGE_CHOICES,
+        index=RANGE_CHOICES.index(current.range_key),
+        format_func=range_label,
+        horizontal=True,
+        key=f"range-controls-{current.range_key}",
+    )
+    if chosen_range != current.range_key:
+        state_module.update(replace(current, range_key=chosen_range))
+        st.rerun()
+
+    metric_options = METRIC_CHOICES if allow_both else METRIC_CHOICES[:2]
+    chosen_metric = st.radio(
+        "Metryka",
+        metric_options,
+        index=metric_options.index(current.metric) if current.metric in metric_options else 0,
+        format_func=METRIC_CHOICE_LABELS.get,
+        horizontal=True,
+        key=f"metric-controls-{current.metric}",
+    )
+    if chosen_metric != current.metric:
+        state_module.update(replace(current, metric=chosen_metric))
+        st.rerun()
+    return chosen_range, chosen_metric
 
 
 def page_header(title: str, subtitle: str | None = None) -> None:

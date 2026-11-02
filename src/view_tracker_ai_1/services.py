@@ -182,6 +182,7 @@ class Overview:
     median_gain: float | None
     ranking: tuple[RankRow, ...]
     freshness: queries.Freshness
+    offers_with_drops: int = 0
 
 
 def overview(
@@ -225,6 +226,7 @@ def overview(
             if row.offer_id in offers_by_id
         ),
         freshness=queries.freshness(conn),
+        offers_with_drops=sum(1 for row in gains if row.drops > 0),
     )
 
 
@@ -308,6 +310,115 @@ def compare_offers(
             )
         )
     return tuple(result)
+
+
+MAX_COMPARISON_OFFERS = 5
+
+
+@dataclass(frozen=True, slots=True)
+class IndexPoint:
+    captured_at: datetime
+    index: float
+
+
+@dataclass(frozen=True, slots=True)
+class IndexedSeries:
+    offer: Offer
+    points: tuple[IndexPoint, ...]
+    base_value: int
+
+
+def compare_offers_indexed(    conn: sqlite3.Connection,
+    offer_ids: Sequence[str],
+    *,
+    range_key: str = "30d",
+    metric: Metric = "visits",
+    now: datetime,
+) -> tuple[IndexedSeries, ...]:
+    """Serie znormalizowane do indeksu 100 w pierwszym punkcie okna (FR-14).
+
+    Oferty bez danych albo z bazą 0 są pomijane — indeksu nie da się zdefiniować.
+    """
+    if len(offer_ids) > MAX_COMPARISON_OFFERS:
+        raise ValueError(
+            f"Do porównania można wybrać najwyżej {MAX_COMPARISON_OFFERS} ofert."
+        )
+
+    offers_by_id = {
+        item.offer.offer_id: item.offer for item in queries.offers_with_last_snapshot(conn)
+    }
+    result: list[IndexedSeries] = []
+    for offer_id in offer_ids:
+        offer = offers_by_id.get(offer_id)
+        if offer is None:
+            continue
+        snapshots = storage.get_series(conn, offer_id)
+        source: Source = snapshots[0].source if snapshots else "api"
+        series = analytics.build_series(snapshots, offer_id=offer_id, metric=metric, source=source)
+        points = analytics.select_points(series.points, range_key, now)
+        if not points:
+            continue
+        base = points[0].value
+        if base <= 0:
+            continue
+        result.append(
+            IndexedSeries(
+                offer=offer,
+                points=tuple(
+                    IndexPoint(captured_at=point.captured_at, index=point.value / base * 100.0)
+                    for point in points
+                ),
+                base_value=base,
+            )
+        )
+    return tuple(result)
+
+
+@dataclass(frozen=True, slots=True)
+class ComparisonRow:
+    offer: Offer
+    base_value: int
+    last_value: int
+    gained: int
+    drops: int
+    points: int
+
+
+def comparison_rows(
+    conn: sqlite3.Connection,
+    offer_ids: Sequence[str],
+    *,
+    range_key: str = "30d",
+    metric: Metric = "visits",
+    now: datetime,
+) -> tuple[ComparisonRow, ...]:
+    """Tabela porównawcza: poziom na starcie i końcu okna, przyrost, spadki, punkty."""
+    offers_by_id = {
+        item.offer.offer_id: item.offer for item in queries.offers_with_last_snapshot(conn)
+    }
+    rows: list[ComparisonRow] = []
+    for offer_id in offer_ids:
+        offer = offers_by_id.get(offer_id)
+        if offer is None:
+            continue
+        snapshots = storage.get_series(conn, offer_id)
+        source: Source = snapshots[0].source if snapshots else "api"
+        series = analytics.build_series(snapshots, offer_id=offer_id, metric=metric, source=source)
+        points = analytics.select_points(series.points, range_key, now)
+        if not points:
+            continue
+        deltas = analytics.deltas(points)
+        rows.append(
+            ComparisonRow(
+                offer=offer,
+                base_value=points[0].value,
+                last_value=points[-1].value,
+                gained=sum(analytics.positive_gains(points)),
+                drops=sum(1 for delta in deltas if delta < 0),
+                points=len(points),
+            )
+        )
+    return tuple(rows)
 
 
 # --- kolektor ---------------------------------------------------------------
@@ -448,6 +559,10 @@ def previous_period(range_key: str, now: datetime) -> tuple[datetime, datetime] 
 __all__ = [
     "RANGE_KEYS",
     "CollectorState",
+    "ComparisonRow",
+    "IndexPoint",
+    "IndexedSeries",
+    "MAX_COMPARISON_OFFERS",
     "OfferListItem",
     "OfferSeries",
     "OfferView",
@@ -459,7 +574,9 @@ __all__ = [
     "build_auth",
     "collector_state",
     "compare_offers",
+    "compare_offers_indexed",
     "compare_periods",
+    "comparison_rows",
     "complete_login",
     "data_version",
     "database",

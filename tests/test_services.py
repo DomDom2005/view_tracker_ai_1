@@ -299,3 +299,83 @@ def test_begin_and_complete_login(tmp_path: Path) -> None:
     tokens = services.complete_login(auth, authorization)
     assert tokens.access_token == "access-1"
     assert services.token_status(config).logged_in is True
+
+
+# --- S3: przegląd i porównania ----------------------------------------------
+def test_overview_counts_offers_with_drops(db: sqlite3.Connection) -> None:
+    add_point(db, "1", timedelta(hours=2), 200)  # wzrost
+    add_point(db, "1", timedelta(hours=1), 180)  # spadek w oknie 30d
+    overview = services.overview(db, range_key="30d", metric="visits", now=NOW)
+
+    assert overview.offers_with_drops == 1
+    assert overview.gains.drops >= 1
+
+
+def test_compare_offers_indexed_starts_at_100(db: sqlite3.Connection) -> None:
+    indexed = services.compare_offers_indexed(
+        db, ["1", "2"], range_key="30d", metric="visits", now=NOW
+    )
+
+    assert [item.offer.offer_id for item in indexed] == ["1", "2"]
+    first = indexed[0]
+    assert first.base_value == 60  # pierwszy punkt oferty 1 w oknie 30 dni
+    assert first.points[0].index == 100.0
+    assert first.points[-1].index == pytest.approx(150 / 60 * 100)
+
+
+def test_compare_offers_indexed_skips_zero_base() -> None:
+    conn = storage.connect(storage.MEMORY_DB)
+    storage.init_db(conn)
+    storage.upsert_offer(
+        conn,
+        Offer(
+            offer_id="zero",
+            name="Od zera",
+            status="ACTIVE",
+            first_seen_at=NOW - timedelta(days=7),
+            last_seen_at=NOW,
+        ),
+    )
+    storage.insert_snapshots(
+        conn,
+        [
+            Snapshot(
+                offer_id="zero",
+                captured_at=NOW - timedelta(days=1),
+                visits_count=0,
+                watchers_count=0,
+            ),
+            Snapshot(
+                offer_id="zero",
+                captured_at=NOW,
+                visits_count=5,
+                watchers_count=0,
+            ),
+        ],
+    )
+
+    indexed = services.compare_offers_indexed(
+        conn, ["zero"], range_key="7d", metric="visits", now=NOW
+    )
+    assert indexed == ()
+    conn.close()
+
+
+def test_compare_offers_indexed_rejects_more_than_five(db: sqlite3.Connection) -> None:
+    with pytest.raises(ValueError, match="najwyżej"):
+        services.compare_offers_indexed(
+            db, [str(index) for index in range(6)], now=NOW
+        )
+
+
+def test_comparison_rows_contain_window_edges(db: sqlite3.Connection) -> None:
+    rows = services.comparison_rows(
+        db, ["1", "2"], range_key="30d", metric="visits", now=NOW
+    )
+
+    assert [row.offer.offer_id for row in rows] == ["1", "2"]
+    first = rows[0]
+    assert (first.base_value, first.last_value) == (60, 150)
+    assert first.gained == 90
+    assert first.points == 3
+

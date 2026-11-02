@@ -67,7 +67,14 @@ def seed(db_path: Path) -> None:
                 captured_at=NOW,
                 visits_count=54,
                 watchers_count=3,
-            )
+            ),
+            Snapshot(
+                offer_id="2",
+                captured_at=NOW,
+                visits_count=30,
+                watchers_count=1,
+                source="synthetic",
+            ),
         ],
     )
     conn.close()
@@ -195,6 +202,41 @@ def test_offer_page_renders_custom_range(isolated_environment: Path) -> None:
     assert at.date_input
 
 
+def test_overview_shows_ranking_and_comparison(
+    isolated_environment: Path,
+) -> None:
+    seed(isolated_environment)
+
+    at = run_app()
+
+    assert not at.exception
+    labels = [metric.label for metric in at.metric]
+    assert "Przyrost w oknie" in labels
+    assert "Mediana przyrostu" in labels
+    assert "Oferty ze spadkiem" in labels
+    assert at.dataframe
+    columns = list(at.dataframe[0].value.columns)
+    assert "Oferta" in columns
+    assert "Otwórz" in columns
+
+
+def test_comparison_page_renders_two_offers(
+    isolated_environment: Path,
+) -> None:
+    seed(isolated_environment)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import comparison\n"
+        "comparison.render()\n",
+        offer=("1", "2"),
+    )
+
+    assert not at.exception
+    assert at.get("plotly_chart")
+    assert at.dataframe
+    assert [box.label for box in at.multiselect] == ["Oferty do porównania (2–5)"]
+
+
 def test_settings_page_shows_versions_and_paths() -> None:
     at = run_page(
         "from view_tracker_ai_1.ui.pages import settings\n"
@@ -232,11 +274,11 @@ def test_data_page_blocks_collection_on_prod() -> None:
     assert any("tylko odczyt" in error.value for error in at.error)
 
 
-def test_comparison_page_is_marked_as_later_step() -> None:
+def test_comparison_page_needs_two_offers() -> None:
     at = run_page(
         "from view_tracker_ai_1.ui.pages import comparison\n"
         "comparison.render()\n"
     )
 
     assert not at.exception
-    assert any("S3" in warning.value for warning in at.warning)
+    assert any("co najmniej 2 oferty" in info.value for info in at.info)

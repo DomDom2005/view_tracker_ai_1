@@ -373,7 +373,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 **S2 — Oferta i wykres.** *(wykonany 2026-11-02)* Lista/wybór oferty, zakresy (presety + własny), metryka, wykres Plotly (poziom + przyrosty + anomalie + pokrycie), karta podsumowania.
 *Bramka:* wykres dla każdego z 5 presetów; testy `services`; dane syntetyczne oznaczone.
 
-**S3 — Przegląd i porównania.** Kafle ogółem, ranking, mediana, porównanie okresów, porównanie ofert (indeks 100).
+**S3 — Przegląd i porównania.** *(wykonany 2026-11-02)* Kafle ogółem, ranking, mediana, porównanie okresów, porównanie ofert (indeks 100).
 *Bramka:* zgodność liczb z ręcznie policzonym przypadkiem w teście; wydajność < 2 s.
 
 **S4 — Kolektor w aplikacji.** „Odśwież”, `collect_runs`, świeżość, tryb ciągły (domyślnie OFF), obsługa `AuthError`/`ApiError`, WAL.

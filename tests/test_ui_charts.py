@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 
 from view_tracker_ai_1 import analytics, queries
 from view_tracker_ai_1.models import Offer, Series, SeriesPoint
-from view_tracker_ai_1.services import OfferView
+from view_tracker_ai_1.services import IndexedSeries, IndexPoint, OfferView
 from view_tracker_ai_1.ui import charts
 
 NOW = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
@@ -105,3 +105,42 @@ def test_figure_shows_coverage_and_points_in_subtitle() -> None:
 
     assert "pokrycie" in figure.layout.title.text
     assert "3 punkty" in figure.layout.title.text
+
+
+def test_comparison_figure_has_line_per_offer() -> None:
+    first = make_view(values=[10, 20, 30])
+    second = make_view(values=[100, 50, 200])
+    indexed = (
+        IndexedSeries(
+            offer=first.offer,
+            points=tuple(
+                IndexPoint(captured_at=point.captured_at, index=point.value / 10 * 100)
+                for point in first.points
+            ),
+            base_value=10,
+        ),
+        IndexedSeries(
+            offer=second.offer,
+            points=tuple(
+                IndexPoint(captured_at=point.captured_at, index=point.value / 100 * 100)
+                for point in second.points
+            ),
+            base_value=100,
+        ),
+    )
+
+    figure = charts.build_comparison_figure(
+        indexed, metric="visits", range_text="24 godziny"
+    )
+
+    assert len(figure.data) == 2
+    assert list(figure.data[0].y)[0] == 100.0
+    assert list(figure.data[1].y)[0] == 100.0
+
+
+def test_comparison_figure_without_offers_shows_message() -> None:
+    figure = charts.build_comparison_figure((), metric="visits", range_text="24 godziny")
+
+    assert figure.data == ()
+    annotations = " ".join(str(item.text) for item in figure.layout.annotations)
+    assert "Brak ofert do porównania" in annotations

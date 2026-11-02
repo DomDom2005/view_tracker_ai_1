@@ -6,13 +6,14 @@ prezentacji nie powtarza analityki. Osie czasu w `Europe/Warsaw`, liczby i etyki
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, time
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from view_tracker_ai_1.models import Metric
-from view_tracker_ai_1.services import OfferView
+from view_tracker_ai_1.services import IndexedSeries, OfferView
 from view_tracker_ai_1.text import (
     LOCAL_TZ,
     format_number,
@@ -103,6 +104,54 @@ def build_figure(view: OfferView, *, metric: Metric, range_text: str) -> go.Figu
         )
 
     _apply_layout(figure, view, metric=metric, range_text=range_text)
+    return figure
+
+
+def build_comparison_figure(
+    indexed: Sequence[IndexedSeries], *, metric: Metric, range_text: str
+) -> go.Figure:
+    """Porównanie ofert: indeks 100 w pierwszym punkcie wspólnego okna (FR-14)."""
+    figure = go.Figure()
+    for item in indexed:
+        moments = [to_local(point.captured_at) for point in item.points]
+        values = [point.index for point in item.points]
+        figure.add_trace(
+            go.Scatter(
+                x=moments,
+                y=values,
+                mode="lines+markers",
+                name=f"{item.offer.name} ({item.offer.offer_id})",
+                marker={"size": 4},
+                hovertemplate="%{x|%d.%m.%Y %H:%M}<br>indeks %{y:.1f}<extra></extra>",
+            )
+        )
+
+    if not figure.data:
+        figure.add_annotation(
+            text="Brak ofert do porównania — wybierz oferty z danymi w tym przedziale.",
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            font={"size": 15},
+        )
+
+    figure.update_layout(
+        title={
+            "text": f"Porównanie ofert — {metric_label(metric)} ({range_text})<br>"
+            "<sup>indeks 100 = wartość w pierwszym punkcie okna</sup>",
+            "x": 0.01,
+            "xanchor": "left",
+        },
+        template="plotly_white",
+        height=540,
+        margin={"l": 70, "r": 30, "t": 95, "b": 45},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 1, "xanchor": "right"},
+        hovermode="x unified",
+    )
+    figure.update_yaxes(title_text="indeks (100 = start okna)")
+    figure.update_xaxes(title_text="czas (Europe/Warsaw)")
     return figure
 
 
