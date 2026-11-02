@@ -379,7 +379,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 **S4 — Kolektor w aplikacji.** *(wykonany 2026-11-02)* „Odśwież”, `collect_runs`, świeżość, tryb ciągły (domyślnie OFF), obsługa `AuthError`/`ApiError`, WAL.
 *Bramka:* testy wątku (start/stop ≤ 5 s, brak startu bez włączenia); brak wyścigów w teście równoległego odczytu i zapisu.
 
-**S5 — Zdarzenia i alerty.** *(wykonany 2026-11-02; endpoint potwierdzony w docs/api-notes.md §9, kształt odpowiedzi i scope nadal TODO(verify)) * `events.py`, weryfikacja `GET /sale/offer-events` w dokumentacji, nanoszenie zdarzeń i adnotacji, „co nowego”, reguły alertów.
+**S5 — Zdarzenia i alerty.** *(wykonany 2026-11-02; endpoint potwierdzony w `docs/api-notes.md` §9, kształt odpowiedzi i scope nadal `TODO(verify)`)* `events.py`, weryfikacja `GET /sale/offer-events` w dokumentacji, nanoszenie zdarzeń i adnotacji, „co nowego”, reguły alertów.
 *Bramka:* testy parsowania i deduplikacji; dokumentacja potwierdzona w `docs/api-notes.md`; przy braku dostępu do endpointu — adnotacje ręczne działają, a `TODO(verify)` zostaje opisane.
 
 **S6 — Demo, dokumentacja, QA.** Generator demo w UI, dokumenty §14, zrzuty ekranu (człowiek), przegląd DoD, `git tag v2.0.0`.
