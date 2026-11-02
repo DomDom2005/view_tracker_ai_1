@@ -39,6 +39,12 @@ Aplikacja ma pięć widoków (szczegóły w [`docs/ui-flows.md`](docs/ui-flows.m
 
 Zrzuty ekranu są celowo pominięte — dokumentacja opisuje interfejs tekstowo.
 
+**Motyw:** „warm glass” — ciepły gradient z rozmytymi kulami i pierścieniami rysowanymi w CSS,
+szklane panele (`backdrop-filter`), cienkie białe linie i atramentowa typografia. Paleta
+widżetów (tabele, inputy) jest w `.streamlit/config.toml`; dekoracje i styl wstrzykuje
+`ui/theme.py`. Motyw nie pobiera żadnych obrazów ani fontów z sieci. Zmiana samego CSS działa
+po odświeżeniu strony; zmiana palety w `config.toml` wymaga restartu serwera.
+
 ## 3. Wymagania i instalacja
 
 - Python **3.11+** (testowane na 3.14.6), Windows / Linux / macOS,

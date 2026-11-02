@@ -62,10 +62,26 @@ def connection(config: Config) -> Iterator[sqlite3.Connection | None]:
         conn.close()
 
 
+def page_header(title: str, subtitle: str | None = None) -> None:
+    """Nagłówek strony: kicker, tytuł, podtytuł i cienka linia jak w motywie."""
+    st.markdown(
+        '<div class="vt-kicker">panel sprzedawcy · view_tracker_ai_1</div>',
+        unsafe_allow_html=True,
+    )
+    st.title(title)
+    if subtitle:
+        st.caption(subtitle)
+    st.markdown('<div class="vt-rule"></div>', unsafe_allow_html=True)
+
+
 def sidebar(state: UiState, config: Config) -> None:
     """Belka statusu: środowisko, token, świeżość danych, wersje."""
     with st.sidebar:
-        st.caption(f"view_tracker_ai_1 {__version__}")
+        st.markdown(
+            '<div class="vt-brand">view<span>·</span>tracker</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption(f"panel ofert · v{__version__}")
         database_selector(state)
         label = ENV_LABELS[state.database]
         if state.database == "prod":
@@ -91,7 +107,7 @@ def _token_block(config: Config) -> None:
         return
     if not status.logged_in:
         st.markdown("**Token:** brak zalogowania")
-        st.caption("Logowanie pojawi się w etapie S2.")
+        st.caption("Zaloguj się na stronie Dane (device flow).")
         return
     state_text = "wygasł" if status.expired else "ważny"
     st.markdown(f"**Token:** {state_text}")
@@ -152,12 +168,6 @@ def range_and_metric_controls(
 def synthetic_badge() -> None:
     """Plakietka dla danych syntetycznych (FR-18: wykres, tabela, kafel)."""
     st.markdown(":orange-badge[DANE SYNTETYCZNE]")
-
-
-def page_header(title: str, subtitle: str | None = None) -> None:
-    st.title(title)
-    if subtitle:
-        st.caption(subtitle)
 
 
 def placeholder(step: str, description: str) -> None:

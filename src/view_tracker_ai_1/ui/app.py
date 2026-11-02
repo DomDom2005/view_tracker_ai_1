@@ -8,7 +8,7 @@ from __future__ import annotations
 import streamlit as st
 
 from view_tracker_ai_1.errors import ConfigError
-from view_tracker_ai_1.ui import components, state
+from view_tracker_ai_1.ui import components, state, theme
 from view_tracker_ai_1.ui.pages import comparison, data, offer, overview, settings
 
 st.set_page_config(
@@ -40,6 +40,7 @@ def main() -> None:
         st.stop()
 
     components.sidebar(current, config)
+    theme.inject()
     st.navigation(build_pages()).run()
 
 

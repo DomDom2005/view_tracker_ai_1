@@ -24,13 +24,18 @@ from view_tracker_ai_1.text import (
     to_local,
 )
 
-LINE_COLOR = "#1f77b4"
-GAIN_COLOR = "#2ca02c"
-ANOMALY_COLOR = "#d62728"
-SYNTHETIC_COLOR = "#b35c00"
-WATCHERS_COLOR = "#ff7f0e"
-EVENT_COLOR = "#7f7f7f"
-ANNOTATION_COLOR = "#9467bd"
+LINE_COLOR = "#b23a17"
+GAIN_COLOR = "#c98212"
+ANOMALY_COLOR = "#b91c1c"
+SYNTHETIC_COLOR = "#9a3412"
+WATCHERS_COLOR = "#6d4fc4"
+EVENT_COLOR = "#8a5a3c"
+ANNOTATION_COLOR = "#7c3aed"
+THEME_INK = "#3b1b0c"
+THEME_INK_SOFT = "rgba(59, 27, 12, 0.7)"
+THEME_GRID = "rgba(59, 27, 12, 0.12)"
+THEME_AXIS = "rgba(59, 27, 12, 0.35)"
+THEME_FONT = "'Segoe UI', 'Inter', system-ui, sans-serif"
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +47,35 @@ class ChartMarker:
     kind: str = "event"
 
 EMPTY_MESSAGE = "Brak danych w wybranym przedziale — uruchom zbieranie albo wybierz inny zakres."
+
+
+def _theme_layout(figure: go.Figure) -> None:
+    """Wspólny styl Plotly: przezroczyste tło, atramentowa typografia, delikatna siatka."""
+    figure.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(255, 255, 255, 0.16)",
+        font={"family": THEME_FONT, "color": THEME_INK, "size": 13},
+        title_font={"color": THEME_INK},
+        hoverlabel={
+            "bgcolor": "rgba(255, 250, 244, 0.96)",
+            "bordercolor": "rgba(120, 60, 20, 0.25)",
+            "font": {"family": THEME_FONT, "color": THEME_INK},
+        },
+    )
+    figure.update_xaxes(
+        gridcolor=THEME_GRID,
+        linecolor=THEME_AXIS,
+        zeroline=False,
+        tickfont={"color": THEME_INK_SOFT},
+        title_font={"color": THEME_INK_SOFT},
+    )
+    figure.update_yaxes(
+        gridcolor=THEME_GRID,
+        linecolor=THEME_AXIS,
+        zeroline=False,
+        tickfont={"color": THEME_INK_SOFT},
+        title_font={"color": THEME_INK_SOFT},
+    )
 
 
 def build_figure(
@@ -201,12 +235,19 @@ def build_comparison_figure(
             "x": 0.01,
             "xanchor": "left",
         },
-        template="plotly_white",
         height=540,
         margin={"l": 70, "r": 30, "t": 95, "b": 45},
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 1, "xanchor": "right"},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "x": 1,
+            "xanchor": "right",
+            "font": {"color": THEME_INK},
+        },
         hovermode="x unified",
     )
+    _theme_layout(figure)
     figure.update_yaxes(title_text="indeks (100 = start okna)")
     figure.update_xaxes(title_text="czas (Europe/Warsaw)")
     return figure
@@ -229,13 +270,20 @@ def _apply_layout(
             "x": 0.01,
             "xanchor": "left",
         },
-        template="plotly_white",
         height=560,
         margin={"l": 70, "r": 30, "t": 95, "b": 45},
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 1, "xanchor": "right"},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "x": 1,
+            "xanchor": "right",
+            "font": {"color": THEME_INK},
+        },
         hovermode="x unified",
         bargap=0.2,
     )
+    _theme_layout(figure)
     if view.secondary_series is not None:
         figure.update_yaxes(title_text=metric_label("visits"), row=1, col=1, secondary_y=False)
         figure.update_yaxes(
