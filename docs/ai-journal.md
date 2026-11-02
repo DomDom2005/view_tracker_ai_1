@@ -39,6 +39,7 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 **Motyw — decyzje:** ciepła, jasna paleta z ciemnym atramentem zamiast białego tekstu z referencji, bo w tabelach i formularzach liczy się kontrast; tło i „3D” kształty są generowane gradientami (zero binariów), a animacja unoszenia respektuje `prefers-reduced-motion`. Paleta widżetów w `config.toml` wymaga restartu serwera, więc po samej zmianie motywu w kodzie wystarczy odświeżyć stronę.
 
 | 2026-11-02 | Motyw — powrót do pierwszej palety | Na życzenie właściciela cofnięta zmiana „wierniejsza paleta” (`e2f34c0`) przez `git revert` (`3ac30af`): wracają jasny kremowy gradient, szkło 0,42, akcent `#d94f14` i atrament `#3b1b0c`. Sam motyw (szkło, kule, pierścienie, typografia) zostaje — cofnięta jest tylko kolorystyka | `ruff` czysty; `pytest` → 344 passed, 1 skipped (testy palety wróciły do poprzednich oczekiwań razem z revertem) | — |
+| 2026-11-02 | Pola wyboru: pomarańczowa ramka | Na prośbę o wyraźniejsze „okienka wyboru”: inputy, selecty, multiselect, pola daty/liczby i textarea mają domyślnie `1px solid var(--vt-accent)` z delikatnym halo; na hover halo rośnie, a na fokus (`:focus-within`) ramka zmienia się na `2px` + mocniejszy pierścień. Otwarty select (`aria-expanded="true"`) dostaje tę samą grubszą ramkę, żeby stan „kliknięte” był widoczny także przy otwartym menu | `ruff` czysty; `pytest` → 345 passed, 1 skipped; nowy test regresyjny pilnuje obu grubości i fokusu | — |
 
 ## Notatki z wydania 2.0.1 (domknięcie §6)
 

@@ -256,15 +256,40 @@ html, body, [class*="css"] {{
 [data-testid="stTabs"] [data-baseweb="tab-border"] {{ display: none; }}
 
 /* --- formularze --- */
+/* Pola wyboru: domyślnie pomarańczowa ramka, po fokusie grubsza (bez skoku layoutu). */
 [data-baseweb="input"] > div,
 [data-baseweb="textarea"] > div,
 [data-baseweb="select"] > div {{
   background: rgba(255, 255, 255, 0.66);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--vt-accent) !important;
   border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(217, 79, 20, 0.12);
   color: var(--vt-ink);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}}
+[data-baseweb="input"]:hover > div,
+[data-baseweb="textarea"]:hover > div,
+[data-baseweb="select"]:hover > div {{
+  border-color: var(--vt-accent) !important;
+  box-shadow: 0 0 0 2px rgba(217, 79, 20, 0.16);
+}}
+[data-baseweb="input"]:focus-within > div,
+[data-baseweb="textarea"]:focus-within > div,
+[data-baseweb="select"]:focus-within > div {{
+  border: 2px solid var(--vt-accent) !important;
+  box-shadow: 0 0 0 4px rgba(217, 79, 20, 0.18);
+}}
+/* otwarte menu selecta/multiselecta też dostaje grubszą ramkę */
+[data-baseweb="select"] > div[aria-expanded="true"] {{
+  border: 2px solid var(--vt-accent) !important;
+  box-shadow: 0 0 0 4px rgba(217, 79, 20, 0.18);
+}}
+[data-testid="stDateInput"] [data-baseweb="input"]:focus-within > div,
+[data-testid="stNumberInput"] [data-baseweb="input"]:focus-within > div,
+[data-testid="stMultiSelect"] [data-baseweb="select"]:focus-within > div {{
+  border-width: 2px !important;
 }}
 [data-baseweb="input"] input, [data-baseweb="textarea"] textarea {{
   color: var(--vt-ink);

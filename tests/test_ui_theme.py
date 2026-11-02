@@ -40,6 +40,13 @@ def test_streamlit_theme_config_is_light_and_warm() -> None:
     assert palette["textColor"].lower() == "#3b1b0c"
 
 
+def test_choice_fields_have_orange_border_and_focus_thickness() -> None:
+    assert "border: 1px solid var(--vt-accent) !important" in theme.CSS
+    assert ":focus-within > div" in theme.CSS
+    assert "border: 2px solid var(--vt-accent) !important" in theme.CSS
+    assert 'aria-expanded="true"' in theme.CSS
+
+
 def test_inject_renders_decor_and_style() -> None:
     from streamlit.testing.v1 import AppTest
 
