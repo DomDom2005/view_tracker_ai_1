@@ -38,6 +38,8 @@ Format wpisu jak w `Project info/SPEC.md` §14. Wpisy są uczciwe — błędy i 
 
 **Motyw — decyzje:** ciepła, jasna paleta z ciemnym atramentem zamiast białego tekstu z referencji, bo w tabelach i formularzach liczy się kontrast; tło i „3D” kształty są generowane gradientami (zero binariów), a animacja unoszenia respektuje `prefers-reduced-motion`. Paleta widżetów w `config.toml` wymaga restartu serwera, więc po samej zmianie motywu w kodzie wystarczy odświeżyć stronę.
 
+| 2026-11-02 | Motyw — powrót do pierwszej palety | Na życzenie właściciela cofnięta zmiana „wierniejsza paleta” (`e2f34c0`) przez `git revert` (`3ac30af`): wracają jasny kremowy gradient, szkło 0,42, akcent `#d94f14` i atrament `#3b1b0c`. Sam motyw (szkło, kule, pierścienie, typografia) zostaje — cofnięta jest tylko kolorystyka | `ruff` czysty; `pytest` → 344 passed, 1 skipped (testy palety wróciły do poprzednich oczekiwań razem z revertem) | — |
+
 ## Notatki z wydania 2.0.1 (domknięcie §6)
 
 **Dlaczego nowa wersja, a nie poprawka tagu:** `v2.0.0` jest już opublikowany; przepisanie tagu
