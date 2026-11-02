@@ -370,7 +370,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 **S1 — Szkielet aplikacji.** *(wykonany 2026-11-02)* `ui/app.py` + nawigacja + `state.py` (URL) + belka statusu (token, baza, świeżość) + strona Ustawienia + wybór bazy/środowiska + read-only prod.
 *Bramka:* aplikacja startuje bez `.env`; AppTest smoke zielony; URL odtwarza widok.
 
-**S2 — Oferta i wykres.** Lista/wybór oferty, zakresy (presety + własny), metryka, wykres Plotly (poziom + przyrosty + anomalie + pokrycie), karta podsumowania.
+**S2 — Oferta i wykres.** *(wykonany 2026-11-02)* Lista/wybór oferty, zakresy (presety + własny), metryka, wykres Plotly (poziom + przyrosty + anomalie + pokrycie), karta podsumowania.
 *Bramka:* wykres dla każdego z 5 presetów; testy `services`; dane syntetyczne oznaczone.
 
 **S3 — Przegląd i porównania.** Kafle ogółem, ranking, mediana, porównanie okresów, porównanie ofert (indeks 100).

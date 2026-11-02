@@ -19,7 +19,15 @@ from view_tracker_ai_1.auth import DeviceAuthorization, DeviceFlowAuth, Tokens, 
 from view_tracker_ai_1.client import AllegroClient
 from view_tracker_ai_1.config import Config
 from view_tracker_ai_1.errors import AuthError
-from view_tracker_ai_1.models import Metric, Offer, Series, SeriesSummary, Source
+from view_tracker_ai_1.models import (
+    DailyGain,
+    Metric,
+    Offer,
+    Series,
+    SeriesPoint,
+    SeriesSummary,
+    Source,
+)
 
 RANGE_KEYS: tuple[str, ...] = ("24h", "7d", "30d", "90d", "all")
 
@@ -88,10 +96,13 @@ def list_offers(
 class OfferView:
     offer: Offer
     series: Series
+    points: tuple[SeriesPoint, ...]
+    daily: tuple[DailyGain, ...]
     summary: SeriesSummary
     snapshots: int
     gaps: int
     freshness: queries.Freshness
+    custom_range: bool = False
 
 
 def offer_view(
@@ -101,8 +112,14 @@ def offer_view(
     range_key: str = "30d",
     metric: Metric = "visits",
     now: datetime,
+    start: datetime | None = None,
+    end: datetime | None = None,
 ) -> OfferView | None:
-    """Seria, podsumowanie i jakość danych jednej oferty (None, gdy oferty nie ma)."""
+    """Seria, podsumowanie i jakość danych jednej oferty (None, gdy oferty nie ma).
+
+    Gdy podano `start` i `end`, używamy zakresu własnego (FR-10), inaczej presetu
+    z `range_key`.
+    """
     state = next(
         (
             item
@@ -117,19 +134,32 @@ def offer_view(
     snapshots = storage.get_series(conn, offer_id)
     source: Source = snapshots[0].source if snapshots else "api"
     series = analytics.build_series(snapshots, offer_id=offer_id, metric=metric, source=source)
-    summary = analytics.summarize(series, range_key=range_key, now=now)
+
+    custom = start is not None and end is not None
+    if custom:
+        points = analytics.select_between(series.points, start, end)
+        summary = analytics.summarize_between(series, start=start, end=end)
+        since = start
+    else:
+        points = analytics.select_points(series.points, range_key, now)
+        summary = analytics.summarize(series, range_key=range_key, now=now)
+        since = analytics.window_start(range_key, now)
+
     return OfferView(
         offer=state.offer,
         series=series,
+        points=points,
+        daily=analytics.daily_gains(points),
         summary=summary,
         snapshots=len(snapshots),
         gaps=queries.gaps(
             conn,
             offer_id,
-            since=analytics.window_start(range_key, now),
+            since=since,
             max_gap_hours=2.0,
         ),
         freshness=queries.freshness(conn),
+        custom_range=custom,
     )
 
 

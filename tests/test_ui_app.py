@@ -79,9 +79,11 @@ def run_app() -> AppTest:
     return at
 
 
-def run_page(script: str, *, db: str = "sandbox") -> AppTest:
+def run_page(script: str, *, db: str = "sandbox", **session: object) -> AppTest:
     at = AppTest.from_string(script, default_timeout=30)
     at.session_state["db"] = db
+    for key, value in session.items():
+        at.session_state[key] = value
     at.run()
     return at
 
@@ -141,7 +143,7 @@ def test_offer_page_without_data_shows_guidance() -> None:
     assert any("Brak ofert" in info.value for info in at.info)
 
 
-def test_offer_page_with_data_and_no_selection_shows_hint(
+def test_offer_page_with_data_renders_chart_and_summary(
     isolated_environment: Path,
 ) -> None:
     seed(isolated_environment)
@@ -152,12 +154,45 @@ def test_offer_page_with_data_and_no_selection_shows_hint(
     )
 
     assert not at.exception
-    assert any("Wybierz ofertę" in info.value for info in at.info)
-    assert len(at.dataframe) == 1
+    assert [box.label for box in at.selectbox] == ["Oferta"]
+    assert at.selectbox[0].value == "1"
+    assert at.get("plotly_chart")
+    labels = [metric.label for metric in at.metric]
+    assert "Minimum" in labels
+    assert "Trend" in labels
+    assert [title.value for title in at.title] == ["Oferta"]
+
+
+@pytest.mark.parametrize("range_key", ["24h", "7d", "30d", "90d", "all"])
+def test_offer_page_renders_every_preset(
+    isolated_environment: Path, range_key: str
+) -> None:
+    seed(isolated_environment)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import offer\n"
+        "offer.render()\n",
+        range=range_key,
+    )
 
     assert not at.exception
-    assert [title.value for title in at.title] == ["Oferta"]
-    assert any("Wybierz ofertę" in info.value for info in at.info)
+    assert at.get("plotly_chart")
+
+
+def test_offer_page_renders_custom_range(isolated_environment: Path) -> None:
+    seed(isolated_environment)
+
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import offer\n"
+        "offer.render()\n",
+        range="custom",
+        date_from="2026-10-01",
+        date_to="2026-11-02",
+    )
+
+    assert not at.exception
+    assert at.get("plotly_chart")
+    assert at.date_input
 
 
 def test_settings_page_shows_versions_and_paths() -> None:

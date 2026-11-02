@@ -24,6 +24,20 @@ METRIC_UNITS: dict[Metric, str] = {
     "watchers": "obserwujący",
 }
 
+RANGE_LABELS: dict[str, str] = {
+    "24h": "24 godziny",
+    "7d": "7 dni",
+    "30d": "30 dni",
+    "90d": "90 dni",
+    "all": "cały okres",
+    "custom": "zakres własny",
+}
+
+
+def range_label(range_key: str) -> str:
+    """Czytelna nazwa zakresu do tytułów wykresów i kart."""
+    return RANGE_LABELS.get(range_key, range_key)
+
 
 def plural(count: int, one: str, few: str, many: str) -> str:
     """Odmiana rzeczownika: 1 punkt / 2 punkty / 5 punktów (z wyjątkiem 12–14)."""
