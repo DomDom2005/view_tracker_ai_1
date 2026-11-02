@@ -367,7 +367,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 **S0 — Porządki i fundament danych.** *(wykonany 2026-11-02 na gałęzi `release/2.0`)* Usunięcie AI/CLI/eksportu (§10), migracja schematu v2 (§7), wydzielenie `services.py`/`queries.py`/`text.py` z logiki dotychczasowego CLI, aktualizacja zależności, zielone testy rdzenia.
 *Bramka:* `ruff` + `pytest`; migracja v1→v2 z testem; brak `anthropic`/`matplotlib` w środowisku; istniejące dane czytelne.
 
-**S1 — Szkielet aplikacji.** `ui/app.py` + nawigacja + `state.py` (URL) + belka statusu (token, baza, świeżość) + strona Ustawienia + wybór bazy/środowiska + read-only prod.
+**S1 — Szkielet aplikacji.** *(wykonany 2026-11-02)* `ui/app.py` + nawigacja + `state.py` (URL) + belka statusu (token, baza, świeżość) + strona Ustawienia + wybór bazy/środowiska + read-only prod.
 *Bramka:* aplikacja startuje bez `.env`; AppTest smoke zielony; URL odtwarza widok.
 
 **S2 — Oferta i wykres.** Lista/wybór oferty, zakresy (presety + własny), metryka, wykres Plotly (poziom + przyrosty + anomalie + pokrycie), karta podsumowania.
