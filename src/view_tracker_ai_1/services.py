@@ -14,15 +14,18 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from statistics import median
 
-from view_tracker_ai_1 import analytics, collector, queries, storage
+from view_tracker_ai_1 import analytics, collector, events, queries, storage
 from view_tracker_ai_1.auth import DeviceAuthorization, DeviceFlowAuth, Tokens, TokenStatus
 from view_tracker_ai_1.client import AllegroClient
 from view_tracker_ai_1.config import Config
 from view_tracker_ai_1.errors import AuthError
 from view_tracker_ai_1.models import (
+    AlertRule,
+    Annotation,
     DailyGain,
     Metric,
     Offer,
+    OfferEvent,
     Series,
     SeriesPoint,
     SeriesSummary,
@@ -421,6 +424,116 @@ def comparison_rows(
     return tuple(rows)
 
 
+# --- zdarzenia, adnotacje, alerty (S5) -------------------------------------
+def sync_offer_events(
+    conn: sqlite3.Connection,
+    config: Config,
+    *,
+    client: AllegroClient | None = None,
+    limit: int = events.DEFAULT_EVENT_LIMIT,
+    now: datetime | None = None,
+) -> int:
+    """Pobierz zdarzenia z API i zapisz nowe (deduplikacja po kluczu naturalnym)."""
+    return events.sync_events(
+        conn,
+        client if client is not None else AllegroClient(config=config),
+        limit=limit,
+        now=now,
+    )
+
+
+def events_for_offer(
+    conn: sqlite3.Connection,
+    offer_id: str,
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> tuple[OfferEvent, ...]:
+    return tuple(storage.list_events(conn, offer_id=offer_id, since=since, until=until))
+
+
+def annotations_for_offer(
+    conn: sqlite3.Connection,
+    offer_id: str,
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> tuple[Annotation, ...]:
+    return tuple(storage.list_annotations(conn, offer_id=offer_id, since=since, until=until))
+
+
+def add_annotation(
+    conn: sqlite3.Connection,
+    *,
+    offer_id: str,
+    occurred_at: datetime,
+    label: str,
+    note: str | None = None,
+    now: datetime | None = None,
+) -> int:
+    return storage.add_annotation(
+        conn,
+        offer_id=offer_id,
+        occurred_at=occurred_at,
+        label=label,
+        note=note,
+        created_at=now,
+    )
+
+
+def delete_annotation(conn: sqlite3.Connection, annotation_id: int) -> int:
+    return storage.delete_annotation(conn, annotation_id)
+
+
+def whats_new(
+    conn: sqlite3.Connection,
+    offer_id: str,
+    *,
+    metric: Metric = "visits",
+    now: datetime,
+) -> events.WhatsNew:
+    return events.whats_new(conn, offer_id, metric=metric, now=now)
+
+
+def mark_offer_seen(
+    conn: sqlite3.Connection, offer_id: str, *, now: datetime | None = None
+) -> None:
+    events.mark_seen(conn, offer_id, now=now)
+
+
+def alert_rules(conn: sqlite3.Connection) -> tuple[AlertRule, ...]:
+    return tuple(storage.list_alert_rules(conn))
+
+
+def add_alert_rule(
+    conn: sqlite3.Connection,
+    *,
+    kind: str,
+    threshold: float,
+    window_days: int,
+    offer_id: str | None = None,
+    now: datetime | None = None,
+) -> int:
+    return storage.add_alert_rule(
+        conn,
+        kind=kind,
+        threshold=threshold,
+        window_days=window_days,
+        offer_id=offer_id,
+        created_at=now,
+    )
+
+
+def delete_alert_rule(conn: sqlite3.Connection, rule_id: int) -> int:
+    return storage.delete_alert_rule(conn, rule_id)
+
+
+def alert_hits(
+    conn: sqlite3.Connection, *, now: datetime, metric: Metric = "visits"
+) -> tuple[events.AlertHit, ...]:
+    return events.evaluate_alerts(conn, now=now, metric=metric)
+
+
 # --- kolektor ---------------------------------------------------------------
 @dataclass(frozen=True, slots=True)
 class RefreshResult:
@@ -570,6 +683,11 @@ __all__ = [
     "PeriodComparison",
     "RankRow",
     "RefreshResult",
+    "add_alert_rule",
+    "add_annotation",
+    "alert_hits",
+    "alert_rules",
+    "annotations_for_offer",
     "begin_login",
     "build_auth",
     "collector_state",
@@ -580,11 +698,17 @@ __all__ = [
     "complete_login",
     "data_version",
     "database",
+    "delete_alert_rule",
+    "delete_annotation",
+    "events_for_offer",
     "list_offers",
+    "mark_offer_seen",
     "offer_view",
     "open_database",
     "overview",
     "previous_period",
     "refresh_once",
+    "sync_offer_events",
     "token_status",
+    "whats_new",
 ]

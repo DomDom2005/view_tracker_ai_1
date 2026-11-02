@@ -28,6 +28,10 @@ class CommentError(AppError):
     """Nie udało się uzyskać komentarza AI (błąd modelu, pusta odpowiedź, brak konfiguracji)."""
 
 
+class EventError(AppError):
+    """Nie udało się pobrać albo sparsować zdarzeń ofert (SPEC-2.0 FR-15)."""
+
+
 class AuthError(AppError):
     """Autoryzacja nieudana: brak tokena, odrzucone odświeżenie, odmowa użytkownika."""
 

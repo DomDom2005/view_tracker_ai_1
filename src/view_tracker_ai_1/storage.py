@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from view_tracker_ai_1.errors import StorageError
-from view_tracker_ai_1.models import Offer, Snapshot, Source
+from view_tracker_ai_1.models import AlertRule, Annotation, Offer, OfferEvent, Snapshot, Source
 
 SCHEMA_VERSION = 2
 MEMORY_DB = ":memory:"
@@ -317,6 +317,182 @@ def set_state(conn: sqlite3.Connection, key: str, value: str) -> None:
             """,
             (key, value),
         )
+
+
+# --- 2.0: zdarzenia, adnotacje, alerty --------------------------------------
+def insert_events(conn: sqlite3.Connection, events: Iterable[OfferEvent]) -> int:
+    """Zapisz zdarzenia ofert; duplikaty `(offer_id, occurred_at, type)` są ignorowane."""
+    rows = [
+        (
+            event.offer_id,
+            to_iso(event.occurred_at),
+            event.type,
+            event.payload_json,
+            to_iso(event.fetched_at if event.fetched_at is not None else datetime.now(UTC)),
+        )
+        for event in events
+    ]
+    if not rows:
+        return 0
+    before = conn.total_changes
+    with conn:
+        conn.executemany(
+            """
+            INSERT INTO offer_events (offer_id, occurred_at, type, payload_json, fetched_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(offer_id, occurred_at, type) DO NOTHING
+            """,
+            rows,
+        )
+    return conn.total_changes - before
+
+
+def list_events(
+    conn: sqlite3.Connection,
+    *,
+    offer_id: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[OfferEvent]:
+    """Zdarzenia z bazy (opcjonalnie jednej oferty i w przedziale)."""
+    sql = "SELECT * FROM offer_events WHERE 1 = 1"
+    params: list[object] = []
+    if offer_id is not None:
+        sql += " AND offer_id = ?"
+        params.append(offer_id)
+    if since is not None:
+        sql += " AND occurred_at >= ?"
+        params.append(to_iso(since))
+    if until is not None:
+        sql += " AND occurred_at <= ?"
+        params.append(to_iso(until))
+    sql += " ORDER BY occurred_at"
+    return [
+        OfferEvent(
+            offer_id=str(row["offer_id"]),
+            occurred_at=from_iso(str(row["occurred_at"])),
+            type=str(row["type"]),
+            payload_json=str(row["payload_json"]),
+            fetched_at=(
+                None if row["fetched_at"] is None else from_iso(str(row["fetched_at"]))
+            ),
+        )
+        for row in conn.execute(sql, params)
+    ]
+
+
+def add_annotation(
+    conn: sqlite3.Connection,
+    *,
+    offer_id: str,
+    occurred_at: datetime,
+    label: str,
+    note: str | None = None,
+    created_at: datetime | None = None,
+) -> int:
+    """Dodaj ręczną adnotację; zwraca jej `id`."""
+    with conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO annotations (offer_id, occurred_at, label, note, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                offer_id,
+                to_iso(occurred_at),
+                label,
+                note,
+                to_iso(created_at if created_at is not None else datetime.now(UTC)),
+            ),
+        )
+    return int(cursor.lastrowid or 0)
+
+
+def list_annotations(
+    conn: sqlite3.Connection,
+    *,
+    offer_id: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[Annotation]:
+    sql = "SELECT * FROM annotations WHERE 1 = 1"
+    params: list[object] = []
+    if offer_id is not None:
+        sql += " AND offer_id = ?"
+        params.append(offer_id)
+    if since is not None:
+        sql += " AND occurred_at >= ?"
+        params.append(to_iso(since))
+    if until is not None:
+        sql += " AND occurred_at <= ?"
+        params.append(to_iso(until))
+    sql += " ORDER BY occurred_at"
+    return [
+        Annotation(
+            id=int(row["id"]),
+            offer_id=str(row["offer_id"]),
+            occurred_at=from_iso(str(row["occurred_at"])),
+            label=str(row["label"]),
+            note=None if row["note"] is None else str(row["note"]),
+            created_at=from_iso(str(row["created_at"])),
+        )
+        for row in conn.execute(sql, params)
+    ]
+
+
+def delete_annotation(conn: sqlite3.Connection, annotation_id: int) -> int:
+    """Usuń adnotację; zwraca liczbę usuniętych wierszy."""
+    with conn:
+        cursor = conn.execute("DELETE FROM annotations WHERE id = ?", (annotation_id,))
+    return int(cursor.rowcount)
+
+
+def add_alert_rule(
+    conn: sqlite3.Connection,
+    *,
+    kind: str,
+    threshold: float,
+    window_days: int,
+    offer_id: str | None = None,
+    created_at: datetime | None = None,
+) -> int:
+    """Dodaj regułę alertu progowego (FR-16)."""
+    with conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO alert_rules (offer_id, kind, threshold, window_days, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                offer_id,
+                kind,
+                float(threshold),
+                int(window_days),
+                to_iso(created_at if created_at is not None else datetime.now(UTC)),
+            ),
+        )
+    return int(cursor.lastrowid or 0)
+
+
+def list_alert_rules(conn: sqlite3.Connection) -> list[AlertRule]:
+    rows = conn.execute("SELECT * FROM alert_rules ORDER BY id").fetchall()
+    return [
+        AlertRule(
+            id=int(row["id"]),
+            offer_id=None if row["offer_id"] is None else str(row["offer_id"]),
+            kind=str(row["kind"]),
+            threshold=float(row["threshold"]),
+            window_days=int(row["window_days"]),
+            created_at=from_iso(str(row["created_at"])),
+        )
+        for row in rows
+    ]
+
+
+def delete_alert_rule(conn: sqlite3.Connection, rule_id: int) -> int:
+    with conn:
+        cursor = conn.execute("DELETE FROM alert_rules WHERE id = ?", (rule_id,))
+    return int(cursor.rowcount)
 
 
 def log_action(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import cast
@@ -9,9 +10,12 @@ from typing import cast
 import streamlit as st
 
 from view_tracker_ai_1 import services
+from view_tracker_ai_1.errors import AppError, AuthError, EventError
 from view_tracker_ai_1.models import Metric
 from view_tracker_ai_1.text import (
     LOCAL_TZ,
+    alert_rule_label,
+    event_label,
     format_datetime,
     format_decimal,
     format_number,
@@ -115,11 +119,42 @@ def render() -> None:
                 if view is None:
                     st.error("Nie znaleziono oferty w bazie.")
                     return
-                _render_offer(view, metric=metric, range_text=range_label(chosen_range))
+                _render_offer(
+                    conn,
+                    view,
+                    metric=metric,
+                    range_text=range_label(chosen_range),
+                    now=now,
+                )
+                _whats_new_block(conn, chosen_id, metric=metric, now=now)
+                _events_and_annotations(conn, config, chosen_id, view, now=now)
+                _alerts_block(conn, chosen_id, now=now)
 
 
-def _render_offer(view: services.OfferView, *, metric: Metric, range_text: str) -> None:
-    figure = charts.build_figure(view, metric=metric, range_text=range_text)
+def _render_offer(
+    conn: sqlite3.Connection,
+    view: services.OfferView,
+    *,
+    metric: Metric,
+    range_text: str,
+    now: datetime,
+) -> None:
+    since = view.points[0].captured_at if view.points else None
+    until = view.points[-1].captured_at if view.points else None
+    events = services.events_for_offer(conn, view.offer.offer_id, since=since, until=until)
+    annotations = services.annotations_for_offer(
+        conn, view.offer.offer_id, since=since, until=until
+    )
+    markers = [
+        charts.ChartMarker(at=event.occurred_at, label=event_label(event.type))
+        for event in events
+    ] + [
+        charts.ChartMarker(at=item.occurred_at, label=item.label, kind="annotation")
+        for item in annotations
+    ]
+    figure = charts.build_figure(
+        view, metric=metric, range_text=range_text, markers=markers
+    )
     st.plotly_chart(figure, width="stretch", key=f"chart-{metric}")
 
     summary = view.summary
@@ -200,3 +235,183 @@ def _safe_date(value: str | None, fallback: date) -> date:
         return date.fromisoformat(value)
     except ValueError:
         return fallback
+
+
+# --- S5: co nowego, zdarzenia, adnotacje, alerty ----------------------------
+def _whats_new_block(
+    conn: sqlite3.Connection, offer_id: str, *, metric: Metric, now: datetime
+) -> None:
+    news = services.whats_new(conn, offer_id, metric=metric, now=now)
+    with st.container(border=True):
+        st.markdown("#### Co nowego od ostatniej wizyty")
+        if news.first_visit:
+            st.caption(
+                "Pierwsza wizyta na tej ofercie — od teraz zapamiętujemy punkt odniesienia."
+            )
+        else:
+            delta = "—" if news.level_delta is None else f"{news.level_delta:+d}"
+            st.write(
+                f"Od {format_datetime(news.since)}: zmiana poziomu **{delta}**, "
+                f"nowe snapshoty: {news.new_snapshots}, "
+                f"nowe anomalie: {news.new_anomalies}, "
+                f"nowe zdarzenia: {news.new_events}."
+            )
+    services.mark_offer_seen(conn, offer_id, now=now)
+
+
+def _events_and_annotations(
+    conn: sqlite3.Connection,
+    config: object,
+    offer_id: str,
+    view: services.OfferView,
+    *,
+    now: datetime,
+) -> None:
+    st.divider()
+    st.subheader("Zdarzenia i adnotacje")
+    since = view.points[0].captured_at if view.points else None
+    until = view.points[-1].captured_at if view.points else now
+    read_only = bool(getattr(config, "is_prod", False))
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("**Zdarzenia z API**")
+        if st.button("Pobierz zdarzenia", key=f"sync-{offer_id}", disabled=read_only):
+            try:
+                added = services.sync_offer_events(conn, config)  # type: ignore[arg-type]
+            except (AuthError, EventError, AppError) as exc:
+                st.error(f"Zdarzenia niedostępne: {exc}")
+            else:
+                st.session_state["events-message"] = f"Zapisano {added} nowych zdarzeń."
+                st.rerun()
+        message = st.session_state.pop("events-message", None)
+        if message:
+            st.success(message)
+
+        events = services.events_for_offer(conn, offer_id, since=since, until=until)
+        if events:
+            st.dataframe(
+                [
+                    {
+                        "Kiedy": format_datetime(event.occurred_at),
+                        "Zdarzenie": event_label(event.type),
+                        "Typ API": event.type,
+                    }
+                    for event in events
+                ],
+                hide_index=True,
+                width="stretch",
+            )
+        else:
+            st.caption(
+                "Brak zdarzeń w tym przedziale. Endpoint zwraca tylko ostatnie 24 h; "
+                "przy braku uprawnień użyj adnotacji ręcznych."
+            )
+
+    with right:
+        st.markdown("**Adnotacje ręczne**")
+        today = now.astimezone(LOCAL_TZ).date()
+        with st.form(f"annotation-{offer_id}", clear_on_submit=True):
+            when = st.date_input("Data zdarzenia", value=today, max_value=today)
+            label = st.text_input("Etykieta", placeholder="np. obniżka ceny")
+            note = st.text_area("Notatka (opcjonalnie)")
+            submitted = st.form_submit_button("Dodaj adnotację", disabled=read_only)
+        if submitted and label.strip():
+            services.add_annotation(
+                conn,
+                offer_id=offer_id,
+                occurred_at=datetime.combine(when, time(12, 0), tzinfo=LOCAL_TZ),
+                label=label.strip(),
+                note=note.strip() or None,
+                now=now,
+            )
+            st.rerun()
+
+        annotations = services.annotations_for_offer(conn, offer_id)
+        if annotations:
+            st.dataframe(
+                [
+                    {
+                        "Data": format_datetime(item.occurred_at),
+                        "Etykieta": item.label,
+                        "Notatka": item.note or "—",
+                    }
+                    for item in annotations
+                ],
+                hide_index=True,
+                width="stretch",
+            )
+            options = [item.id for item in annotations]
+            labels = {
+                item.id: f"{item.occurred_at:%d.%m.%Y} — {item.label}"
+                for item in annotations
+            }
+            chosen = st.selectbox(
+                "Usuń adnotację",
+                options,
+                format_func=labels.get,
+                key=f"del-annotation-{offer_id}",
+            )
+            if st.button("Usuń adnotację", key=f"delete-annotation-{offer_id}"):
+                services.delete_annotation(conn, int(chosen))
+                st.rerun()
+        else:
+            st.caption("Brak adnotacji — dodaj pierwszą (np. zmiana ceny, kampania).")
+
+
+def _alerts_block(conn: sqlite3.Connection, offer_id: str, *, now: datetime) -> None:
+    st.divider()
+    st.subheader("Alerty progowe")
+    hits = [hit for hit in services.alert_hits(conn, now=now) if hit.offer.offer_id == offer_id]
+    for hit in hits:
+        st.warning(
+            f"{alert_rule_label(hit.rule.kind)}: szczyt {format_number(hit.peak_value)} → "
+            f"teraz {format_number(hit.last_value)} "
+            f"(spadek {format_number(hit.drop_abs)}, {format_percent(hit.drop_pct)})."
+        )
+    if not hits:
+        st.caption("Brak aktywnych alertów dla tej oferty.")
+
+    with st.form(f"alert-{offer_id}", clear_on_submit=True):
+        kind = st.selectbox(
+            "Rodzaj alertu",
+            ["pct_drop", "abs_drop"],
+            format_func=alert_rule_label,
+        )
+        threshold = st.number_input(
+            "Próg (0,2 = 20% albo liczba sztuk)",
+            min_value=0.0,
+            value=0.2 if kind == "pct_drop" else 10.0,
+            step=0.05 if kind == "pct_drop" else 1.0,
+        )
+        window_days = st.number_input("Okno (dni)", min_value=1, value=30, step=1)
+        added = st.form_submit_button("Dodaj alert")
+    if added:
+        services.add_alert_rule(
+            conn,
+            kind=kind,
+            threshold=float(threshold),
+            window_days=int(window_days),
+            offer_id=offer_id,
+            now=now,
+        )
+        st.rerun()
+
+    rules = [
+        rule
+        for rule in services.alert_rules(conn)
+        if rule.offer_id in (None, offer_id)
+    ]
+    if rules:
+        st.caption(
+            "Reguły: "
+            + "; ".join(
+                f"{alert_rule_label(rule.kind)} ≥ {rule.threshold:g} w {rule.window_days} d"
+                for rule in rules
+            )
+        )
+        rule_ids = [rule.id for rule in rules]
+        chosen_rule = st.selectbox("Usuń regułę", rule_ids, key=f"del-rule-{offer_id}")
+        if st.button("Usuń regułę", key=f"delete-rule-{offer_id}"):
+            services.delete_alert_rule(conn, int(chosen_rule))
+            st.rerun()

@@ -10,9 +10,11 @@ import streamlit as st
 from view_tracker_ai_1 import services
 from view_tracker_ai_1.models import Metric
 from view_tracker_ai_1.text import (
+    alert_rule_label,
     format_datetime,
     format_decimal,
     format_number,
+    format_percent,
     format_signed_percent,
     metric_label,
     offers_label,
@@ -83,6 +85,17 @@ def render() -> None:
             f"{offers_label(len(offers))} · "
             + _comparison_caption(chosen_range, comparison.change_pct)
         )
+
+        hits = services.alert_hits(conn, now=now, metric=metric)
+        if hits:
+            described = "; ".join(
+                f"{hit.offer.name}: {alert_rule_label(hit.rule.kind)} "
+                f"{format_percent(hit.drop_pct)} (szczyt {format_number(hit.peak_value)} → "
+                f"teraz {format_number(hit.last_value)})"
+                for hit in hits[:3]
+            )
+            more = f" (+{len(hits) - 3} więcej)" if len(hits) > 3 else ""
+            st.warning(f"Alerty progowe: {described}{more}")
 
         st.divider()
         st.subheader("Ranking ofert")

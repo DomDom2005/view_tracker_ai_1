@@ -161,13 +161,18 @@ def test_offer_page_with_data_renders_chart_and_summary(
     )
 
     assert not at.exception
-    assert [box.label for box in at.selectbox] == ["Oferta"]
+    assert at.selectbox[0].label == "Oferta"
     assert at.selectbox[0].value == "1"
     assert at.get("plotly_chart")
     labels = [metric.label for metric in at.metric]
     assert "Minimum" in labels
     assert "Trend" in labels
     assert [title.value for title in at.title] == ["Oferta"]
+    markdown = "\n".join(element.value for element in at.markdown)
+    assert "Co nowego od ostatniej wizyty" in markdown
+    subheaders = [element.value for element in at.subheader]
+    assert "Zdarzenia i adnotacje" in subheaders
+    assert "Alerty progowe" in subheaders
 
 
 @pytest.mark.parametrize("range_key", ["24h", "7d", "30d", "90d", "all"])

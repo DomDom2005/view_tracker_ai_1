@@ -105,3 +105,39 @@ class SeriesSummary:
     @property
     def has_anomalies(self) -> bool:
         return bool(self.anomalies)
+
+
+# --- 2.0: zdarzenia, adnotacje, alerty --------------------------------------
+@dataclass(frozen=True, slots=True)
+class OfferEvent:
+    """Zdarzenie oferty z API (`GET /sale/offer-events`) albo zsynchronizowane wcześniej."""
+
+    offer_id: str
+    occurred_at: datetime
+    type: str
+    payload_json: str = "{}"
+    fetched_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Annotation:
+    """Ręczna adnotacja nanoszona na wykres (np. „obniżka ceny”)."""
+
+    id: int
+    offer_id: str
+    occurred_at: datetime
+    label: str
+    note: str | None
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AlertRule:
+    """Reguła alertu progowego (FR-16); `offer_id=None` oznacza cały katalog."""
+
+    id: int
+    offer_id: str | None
+    kind: str
+    threshold: float
+    window_days: int
+    created_at: datetime

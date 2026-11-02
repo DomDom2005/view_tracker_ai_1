@@ -7,6 +7,7 @@ prezentacji nie powtarza analityki. Osie czasu w `Europe/Warsaw`, liczby i etyki
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime, time
 
 import plotly.graph_objects as go
@@ -27,11 +28,28 @@ LINE_COLOR = "#1f77b4"
 GAIN_COLOR = "#2ca02c"
 ANOMALY_COLOR = "#d62728"
 SYNTHETIC_COLOR = "#b35c00"
+EVENT_COLOR = "#7f7f7f"
+ANNOTATION_COLOR = "#9467bd"
+
+
+@dataclass(frozen=True, slots=True)
+class ChartMarker:
+    """Pionowy znacznik na wykresie: zdarzenie z API albo adnotacja ręczna."""
+
+    at: datetime
+    label: str
+    kind: str = "event"
 
 EMPTY_MESSAGE = "Brak danych w wybranym przedziale — uruchom zbieranie albo wybierz inny zakres."
 
 
-def build_figure(view: OfferView, *, metric: Metric, range_text: str) -> go.Figure:
+def build_figure(
+    view: OfferView,
+    *,
+    metric: Metric,
+    range_text: str,
+    markers: Sequence[ChartMarker] = (),
+) -> go.Figure:
     """Wykres dwupanelowy: poziom licznika + dzienne przyrosty (z anomaliami)."""
     figure = make_subplots(
         rows=2,
@@ -101,6 +119,17 @@ def build_figure(view: OfferView, *, metric: Metric, range_text: str) -> go.Figu
             ),
             row=2,
             col=1,
+        )
+
+    for marker in markers:
+        figure.add_vline(
+            x=to_local(marker.at),
+            line_width=1,
+            line_dash="dot",
+            line_color=ANNOTATION_COLOR if marker.kind == "annotation" else EVENT_COLOR,
+            annotation_text=marker.label[:26],
+            annotation_position="top",
+            annotation_font_size=10,
         )
 
     _apply_layout(figure, view, metric=metric, range_text=range_text)

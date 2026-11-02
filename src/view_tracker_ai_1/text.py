@@ -33,6 +33,33 @@ RANGE_LABELS: dict[str, str] = {
     "custom": "zakres własny",
 }
 
+EVENT_LABELS: dict[str, str] = {
+    "OFFER_ACTIVATED": "wystawienie oferty",
+    "OFFER_CHANGED": "zmiana w ofercie",
+    "OFFER_STOCK_CHANGED": "zmiana liczby sztuk",
+    "OFFER_PRICE_CHANGED": "zmiana ceny",
+    "OFFER_ENDED": "zakończenie oferty",
+    "OFFER_ARCHIVED": "archiwizacja oferty",
+    "OFFER_BID_PLACED": "oferta w licytacji",
+    "OFFER_BID_CANCELED": "wycofanie z licytacji",
+    "OFFER_TRANSLATION_UPDATED": "aktualizacja tłumaczenia",
+    "OFFER_VISIBILITY_CHANGED": "zmiana widoczności",
+}
+
+ALERT_RULE_LABELS: dict[str, str] = {
+    "pct_drop": "spadek o % od szczytu",
+    "abs_drop": "spadek o liczbę sztuk od szczytu",
+}
+
+
+def event_label(event_type: str) -> str:
+    """Czytelna nazwa zdarzenia oferty; nieznane typy zostają surowe."""
+    return EVENT_LABELS.get(event_type, event_type)
+
+
+def alert_rule_label(kind: str) -> str:
+    return ALERT_RULE_LABELS.get(kind, kind)
+
 
 def range_label(range_key: str) -> str:
     """Czytelna nazwa zakresu do tytułów wykresów i kart."""
