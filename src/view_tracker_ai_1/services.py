@@ -8,7 +8,8 @@ Dzięki temu logikę da się testować bez przeglądarki, a późniejsza zmiana 
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from statistics import median
@@ -33,6 +34,16 @@ def open_database(config: Config) -> sqlite3.Connection:
         conn.close()
         raise
     return conn
+
+
+@contextmanager
+def database(config: Config) -> Iterator[sqlite3.Connection]:
+    """Połączenie na czas jednego widoku UI (Streamlit otwiera je na każdy rerun)."""
+    conn = open_database(config)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 # --- oferty -----------------------------------------------------------------
@@ -421,6 +432,7 @@ __all__ = [
     "compare_periods",
     "complete_login",
     "data_version",
+    "database",
     "list_offers",
     "offer_view",
     "open_database",
