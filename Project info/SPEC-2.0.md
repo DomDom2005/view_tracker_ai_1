@@ -441,3 +441,12 @@ Wydanie **2.0.1** uzupełnia luki wykryte w przeglądzie DoD po 2.0.0:
 | FR-18 | zbieranie i zdarzenia zablokowane na bazie demo (niemieszanie źródeł); plakietka „DANE SYNTETYCZNE” na wykresie, stronie oferty, porównaniu i ekranie Dane |
 
 Zrzuty ekranu **pominięte decyzją właściciela projektu** (2026-11-02) — README opisuje interfejs tekstowo; przejście na realnym sandboxie pozostaje zadaniem człowieka (§16).
+---
+
+## 20. Wersja 2.1.0 (scalenie z main)
+
+- **Numeracja:** 2.1.0 to wydanie po scaleniu gałęzi elease/2.0 z main; zakres funkcji jest
+  taki sam jak w 2.0.1 (poprawki §6 z sekcji 19), zmiana dotyczy linii wydania.
+- **Scalenie:** merge commit --no-ff z elease/2.0 do main; tag 2.1.0 na main.
+  Obie gałęzie wskazują ten sam commit, więc nie ma dwóch równoległych „prawd”.
+- **Historia:** tagi 1.0, 2.0.0, 2.0.1, 2.1.0 zostają; main przestaje być gałęzią v1.0.

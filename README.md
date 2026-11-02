@@ -11,6 +11,8 @@ gita i na tagu `v1.0`. Funkcje AI oraz eksportu plików zostały **wycofane** (p
 > **2.0.1** domyka wymagania §6 SPEC: lista ofert z wyszukiwaniem/filtrem/sortowaniem,
 > automatyczne odpytywanie logowania, dwie osie dla metryki „oba”, blokada zbierania do bazy
 > demo i plakietki „DANE SYNTETYCZNE” w tabelach.
+> **2.1.0** to scalenie `release/2.0` z gałęzią `main` (merge commit, tag `v2.1.0`); obie
+> gałęzie wskazują ten sam commit.
 
 ## 1. Cel
 
