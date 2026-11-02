@@ -52,6 +52,7 @@ ma wpis `ok`.
 - Kształt odpowiedzi i wymagany scope `GET /sale/offer-events` (parser jest tolerancyjny).
 - Czy `visitsCount` maleje — `scripts/probe_counter.py` na ≥ 48 h.
 
-## 6. Zrzuty ekranu
+## 6. Zrzuty ekranu (niewymagane)
 
-Lista plików i tego, co ma być widoczne (oraz co zamaskować): `docs/screenshots/README.md`.
+Nie są wymagane — decyzja właściciela projektu (2026-11-02). README opisuje interfejs tekstowo,
+a szczegóły widoków są w `docs/ui-flows.md`.

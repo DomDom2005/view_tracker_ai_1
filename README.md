@@ -22,12 +22,20 @@ a potem liczy z nich przyrosty, trend, pokrycie i anomalie (spadki licznika).
 Efekt dla użytkownika: wybierasz ofertę i zakres, a aplikacja pokazuje wykres, liczby, ranking
 ofert, porównanie okresów, zdarzenia oferty i adnotacje — bez terminala i bez plików pośrednich.
 
-## 2. Zrzuty ekranu
+## 2. Interfejs
 
-Zrzuty uzupełnia człowiek; lista plików i tego, co mają pokazywać (oraz co zamaskować), jest
-w [`docs/screenshots/README.md`](docs/screenshots/README.md). Planowane widoki:
-`01-przeglad.png`, `02-oferta-wykres.png`, `03-oferta-zdarzenia.png`, `04-porownanie.png`,
-`05-dane-kolektor.png`, `06-ustawienia-demo.png`, `07-login.png`.
+Aplikacja ma pięć widoków (szczegóły w [`docs/ui-flows.md`](docs/ui-flows.md)):
+
+- **Przegląd** — osiem kafli „ogółem” (poziom, przyrost z porównaniem okresów, mediana,
+  obserwujący, spadki), banner alertów i ranking ofert z linkami.
+- **Oferta** — lista ofert z wyszukiwaniem/filtrem/sortowaniem, wybór 2–5 ofert do porównania,
+  wykres Plotly (poziom + dzienne przyrosty, anomalie, znaczniki zdarzeń), karta podsumowania,
+  „co nowego”, adnotacje i alerty.
+- **Porównanie** — indeks 100 dla 2–5 ofert, tabela i porównanie okresów.
+- **Dane** — logowanie device flow, „Odśwież teraz”, przebiegi i tryb ciągły.
+- **Ustawienia** — ścieżki, wersje, generowanie danych demo.
+
+Zrzuty ekranu są celowo pominięte — dokumentacja opisuje interfejs tekstowo.
 
 ## 3. Wymagania i instalacja
 
@@ -147,7 +155,8 @@ Wycofane w 2.0: moduł AI (`ai_comment.py`), CLI (`cli.py`), wykresy PNG i rapor
 - Tokeny: `~/.config/view_tracker_ai_1/tokens.json`, katalog `700`, plik `600`, zapis atomowy.
 - Aplikacja nie pokazuje tokenów, nie zapisuje ich w URL ani w stanie sesji; logi przechodzą
   przez filtr maskujący `Authorization`, JWT, `client_secret` i klucze API.
-- Na zrzutach ekranu nie umieszczaj tokenów, identyfikatorów konta ani danych kupujących.
+- Nie udostępniaj widoków z tokenami, identyfikatorami konta ani danymi kupujących
+  (aplikacja i tak nie pokazuje tokenów).
 
 ## 12. Dziennik AI
 

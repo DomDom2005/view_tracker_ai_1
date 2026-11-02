@@ -11,7 +11,7 @@
 1. **Dokumentacja Allegro jest ważniejsza niż ten plik.** Przed użyciem endpointu sprawdź go na developer.allegro.pl. Rozbieżność zapisz w `docs/ai-journal.md` (sekcja „Odstępstwa od SPEC”).
 2. **Niczego nie zgaduj.** Rzeczy niezweryfikowane są oznaczone `TODO(verify)`; nie wymyślaj nazw pól, parametrów ani scope'ów.
 3. **Testy działają offline.** Zero prawdziwych żądań sieciowych — mocki (`responses`), blokada gniazd w `tests/conftest.py` obowiązuje.
-4. **Sekrety tylko w `.env` poza repo.** Nigdy w UI, logach, zrzutach ekranu, przykładach ani w URL.
+4. **Sekrety tylko w `.env` poza repo.** Nigdy w UI, logach, udostępnianych widokach, przykładach ani w URL.
 5. **Rdzeń v1 zostaje.** `analytics.py`, `storage.py`, `client.py`, `auth.py`, `config.py` przechodzą do 2.0 bez zmiany kontraktów (poza `storage` — patrz §7). Nie przepisujemy ich „przy okazji”.
 6. **Warstwy.** `ui/` zna tylko `services.py` i `queries.py`; nie importuje `sqlite3`, `storage`, `client` ani `analytics` bezpośrednio. Wyjątek: `models` (typy DTO).
 7. **Pracuj etapami** (§15). Po każdym: `ruff check`, `pytest`, commit, wpis w `docs/ai-journal.md`.
@@ -197,7 +197,7 @@ view_tracker_ai_1/
 
 ### Wymagania niefunkcjonalne
 
-- **NFR-1** Zero sekretów w UI, URL, logach i zrzutach ekranu.
+- **NFR-1** Zero sekretów w UI, URL, logach i udostępnianych widokach.
 - **NFR-2** Testy offline i deterministyczne; żadnych prawdziwych `sleep` ani sieci.
 - **NFR-3** Czasy w bazie UTC, prezentacja `Europe/Warsaw`.
 - **NFR-4** `ruff check` bez błędów; `from __future__ import annotations`.
@@ -350,15 +350,15 @@ Zasady: żadnych testów opartych na obrazkach; figury Plotly porównujemy jako 
 - Tokeny: plik `~/.config/view_tracker_ai_1/tokens.json`, katalog 700 / plik 600, zapis atomowy (istnieje w `auth.py`).
 - UI nie wyświetla tokenów, nie zapisuje ich w `st.session_state`, nie wstawia do URL ani logów; `config.redact()` obowiązuje w logach.
 - Produkcja: tylko odczyt; przycisk odświeżania i tryb ciągły zablokowane, badge PROD.
-- Zrzuty ekranu do dokumentacji: bez tokenów, identyfikatorów konta i danych kupujących.
+- Zrzuty ekranu **nie są wymagane** (decyzja właściciela projektu, 2026-11-02); jeśli ktoś je robi, obowiązuje zasada: bez tokenów, identyfikatorów konta i danych kupujących.
 
 ---
 
 ## 14. Dokumentacja do dostarczenia
 
-`README.md` (po polsku) — sekcje: cel; zrzut ekranu aplikacji; wymagania i instalacja; konfiguracja `.env`; uruchomienie (`python -m view_tracker_ai_1.ui`); **pierwsze kroki** (login → odśwież → przegląd); wyjaśnienie pojęć (poziom vs przyrost, pokrycie, anomalia, dane syntetyczne); tryb ciągły i jego ograniczenia (tylko przy działającej aplikacji); błędy i limity API; testy; bezpieczeństwo; dziennik AI; ograniczenia (semantyka `visitsCount`, sandbox bez ruchu).
+`README.md` (po polsku) — sekcje: cel; opis interfejsu (bez zrzutów ekranu — decyzja właściciela z 2026-11-02); wymagania i instalacja; konfiguracja `.env`; uruchomienie (`python -m view_tracker_ai_1.ui`); **pierwsze kroki** (login → odśwież → przegląd); wyjaśnienie pojęć (poziom vs przyrost, pokrycie, anomalia, dane syntetyczne); tryb ciągły i jego ograniczenia (tylko przy działającej aplikacji); błędy i limity API; testy; bezpieczeństwo; dziennik AI; ograniczenia (semantyka `visitsCount`, sandbox bez ruchu).
 
-Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL), `docs/api-notes.md` §9 (zdarzenia ofert, `TODO(verify)`), `docs/manual-sandbox-checklist.md` (login w aplikacji), `docs/screenshots/README.md` (lista zrzutów 2.0), `docs/ai-journal.md` (wpisy etapów 2.0).
+Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL), `docs/api-notes.md` §9 (zdarzenia ofert, `TODO(verify)`), `docs/manual-sandbox-checklist.md` (login w aplikacji), `docs/ai-journal.md` (wpisy etapów 2.0).
 
 ---
 
@@ -382,7 +382,7 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 **S5 — Zdarzenia i alerty.** *(wykonany 2026-11-02; endpoint potwierdzony w `docs/api-notes.md` §9, kształt odpowiedzi i scope nadal `TODO(verify)`)* `events.py`, weryfikacja `GET /sale/offer-events` w dokumentacji, nanoszenie zdarzeń i adnotacji, „co nowego”, reguły alertów.
 *Bramka:* testy parsowania i deduplikacji; dokumentacja potwierdzona w `docs/api-notes.md`; przy braku dostępu do endpointu — adnotacje ręczne działają, a `TODO(verify)` zostaje opisane.
 
-**S6 — Demo, dokumentacja, QA.** *(wykonany 2026-11-02)* Generator demo w UI, dokumenty §14, zrzuty ekranu (człowiek), przegląd DoD, `git tag v2.0.0`.
+**S6 — Demo, dokumentacja, QA.** *(wykonany 2026-11-02; zrzuty ekranu pominięte decyzją właściciela)* Generator demo w UI, dokumenty §14, przegląd DoD, `git tag v2.0.0`.
 *Bramka:* aplikacja spełnia §2; README kompletny; brak sekretów w historii; wszystkie `TODO(verify)` rozwiązane albo opisane.
 
 **Definition of Done 2.0.0:** czysta instalacja (`pip install -r requirements-dev.txt`, `pip install -e .`) i start aplikacji na czystej bazie; testy zielone; każda funkcja z §6 działa w UI; brak AI i eksportu; migracja v1→v2 przetestowana; README z instrukcją; tag `v2.0.0`.
@@ -394,9 +394,8 @@ Nowe/aktualizowane dokumenty: `docs/ui-flows.md` (ekrany, stany, parametry URL),
 1. Zarejestrować/utrzymać aplikację Allegro Sandbox ze scope `allegro:api:sale:offers:read` (oraz dostęp do `offer-events`, jeśli endpoint go wymaga).
 2. Wypełnić `.env` kluczami sandboxa i zalogować się w aplikacji (device flow).
 3. Wygenerować ruch na ofertach (drugie konto kupującego) albo użyć trybu demo.
-4. Zrobić zrzuty ekranu wszystkich stron 2.0 (lista w `docs/screenshots/README.md`).
-5. Zdecydować, czy tryb ciągły ma być włączany na stałe w codziennym użyciu (i czy zostawić aplikację uruchomioną).
-6. Zaktualizować „Refleksję” w dzienniku AI.
+4. Zdecydować, czy tryb ciągły ma być włączany na stałe w codziennym użyciu (i czy zostawić aplikację uruchomioną).
+5. Zaktualizować „Refleksję” w dzienniku AI.
 
 ---
 
@@ -441,4 +440,4 @@ Wydanie **2.0.1** uzupełnia luki wykryte w przeglądzie DoD po 2.0.0:
 | FR-17 | jawne „Źródło: dane z API / syntetyczne” przy podsumowaniu oferty |
 | FR-18 | zbieranie i zdarzenia zablokowane na bazie demo (niemieszanie źródeł); plakietka „DANE SYNTETYCZNE” na wykresie, stronie oferty, porównaniu i ekranie Dane |
 
-Zrzuty ekranu i przejście na realnym sandboxie pozostają zadaniami człowieka (§16).
+Zrzuty ekranu **pominięte decyzją właściciela projektu** (2026-11-02) — README opisuje interfejs tekstowo; przejście na realnym sandboxie pozostaje zadaniem człowieka (§16).
