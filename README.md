@@ -13,6 +13,9 @@ gita i na tagu `v1.0`. Funkcje AI oraz eksportu plików zostały **wycofane** (p
 > demo i plakietki „DANE SYNTETYCZNE” w tabelach.
 > **2.1.0** to scalenie `release/2.0` z gałęzią `main` (merge commit, tag `v2.1.0`); obie
 > gałęzie wskazują ten sam commit.
+> **2.2.0** wydaje zmiany, które po 2.1.0 trafiły do repo bez własnego numeru: motyw „warm
+> glass”, pomarańczowe obramowanie pól wyboru, limonkowe słupki przyrostu, uproszczony panel
+> Oferta (bez wielokrotnego wyboru) oraz launcher `run.py`/`start.bat` dla Windows.
 
 ## 1. Cel
 
@@ -30,9 +33,9 @@ Aplikacja ma pięć widoków (szczegóły w [`docs/ui-flows.md`](docs/ui-flows.m
 
 - **Przegląd** — osiem kafli „ogółem” (poziom, przyrost z porównaniem okresów, mediana,
   obserwujący, spadki), banner alertów i ranking ofert z linkami.
-- **Oferta** — lista ofert z wyszukiwaniem/filtrem/sortowaniem, wybór 2–5 ofert do porównania,
-  wykres Plotly (poziom + dzienne przyrosty, anomalie, znaczniki zdarzeń), karta podsumowania,
-  „co nowego”, adnotacje i alerty.
+- **Oferta** — lista ofert z wyszukiwaniem/filtrem/sortowaniem i jednym wyborem oferty
+  (wielokrotny wybór jest tylko na Porównaniu), wykres Plotly (poziom + dzienne przyrosty,
+  anomalie, znaczniki zdarzeń), karta podsumowania, „co nowego”, adnotacje i alerty.
 - **Porównanie** — indeks 100 dla 2–5 ofert, tabela i porównanie okresów.
 - **Dane** — logowanie device flow, „Odśwież teraz”, przebiegi i tryb ciągły.
 - **Ustawienia** — ścieżki, wersje, generowanie danych demo.

@@ -445,8 +445,31 @@ Zrzuty ekranu **pominięte decyzją właściciela projektu** (2026-11-02) — RE
 
 ## 20. Wersja 2.1.0 (scalenie z main)
 
-- **Numeracja:** 2.1.0 to wydanie po scaleniu gałęzi elease/2.0 z main; zakres funkcji jest
+- **Numeracja:** 2.1.0 to wydanie po scaleniu gałęzi `release/2.0` z main; zakres funkcji jest
   taki sam jak w 2.0.1 (poprawki §6 z sekcji 19), zmiana dotyczy linii wydania.
-- **Scalenie:** merge commit --no-ff z elease/2.0 do main; tag 2.1.0 na main.
+- **Scalenie:** merge commit --no-ff z `release/2.0` do main; tag `v2.1.0` na main.
   Obie gałęzie wskazują ten sam commit, więc nie ma dwóch równoległych „prawd”.
-- **Historia:** tagi 1.0, 2.0.0, 2.0.1, 2.1.0 zostają; main przestaje być gałęzią v1.0.
+- **Historia:** tagi v1.0, v2.0.0, v2.0.1, v2.1.0 zostają; main przestaje być gałęzią v1.0.
+
+---
+
+## 21. Wersja 2.2.0 (interfejs i launcher)
+
+Wydanie **2.2.0** zbiera zmiany, które po tagu `v2.1.0` weszły do repo bez własnego numeru.
+Zakres funkcji z §19 i schemat bazy (v2) się nie zmieniają — migracja nie jest potrzebna.
+
+| Commit | Zmiana |
+|---|---|
+| `cb0e532` | motyw „warm glass”: ciepły gradient, kule i pierścienie w CSS, szklane panele, jasna paleta widżetów w `.streamlit/config.toml` |
+| `e2f34c0` → `3ac30af` | próba „wierniejszej palety” z referencji, cofnięta `git revert`; motyw (szkło, kształty, typografia) zostaje |
+| `660ac43` | pola wyboru z pomarańczową ramką: 1 px domyślnie, 2 px przy fokusie i przy otwartym selekcie |
+| `b956bdf` | strona Oferta bez multiselectu „2–5 ofert” (wielokrotny wybór tylko na Porównaniu); słupki dziennego przyrostu w kolorze `#9ed914` |
+| `7118e98`, `e139599` | launcher: `start.bat` woła interpreter z `.venv` i ma końce linii CRLF; test asercji CRLF usunięty (repo normalizuje do LF) |
+| `0a0b695` | usunięte przypadkowe artefakty `pip-uninstall-*` z drzewa repo |
+
+- **Numeracja:** 2.2.0 (minor), bo zmiany dotyczą interfejsu i uruchamiania, a nie tylko
+  poprawek; kontrakt danych bez zmian.
+- **Korekty dokumentacji przy wydaniu:** README §2 nie opisywał już wielokrotnego wyboru ofert
+  na Ofercie, a §20 tego pliku zawierał znaki sterujące CR/VT z wcześniejszej edycji
+  (`elease/2.0` zamiast `release/2.0`, `2.1.0` zamiast `v2.1.0`).
+- **Historia:** tag `v2.2.0`; `main` i `release/2.0` wskazują ten sam commit.
