@@ -81,6 +81,17 @@ i zbieranie danych nie będą działać.
 
 ## 5. Uruchomienie
 
+Najprościej — launcher w katalogu repo (nie wymaga `pip install -e .`):
+
+```bash
+python run.py                          # http://127.0.0.1:8501
+python run.py --server.port 8600
+```
+
+Na Windows można też **dwuklikiem** uruchomić `start.bat` (woła `run.py` i zostawia okno przy błędzie).
+
+Równoważne wywołania bez launchera:
+
 ```bash
 python -m view_tracker_ai_1.ui            # http://127.0.0.1:8501
 python -m view_tracker_ai_1.ui --server.port 8600
