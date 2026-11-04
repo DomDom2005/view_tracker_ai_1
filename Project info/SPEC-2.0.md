@@ -472,4 +472,9 @@ Zakres funkcji z §19 i schemat bazy (v2) się nie zmieniają — migracja nie j
 - **Korekty dokumentacji przy wydaniu:** README §2 nie opisywał już wielokrotnego wyboru ofert
   na Ofercie, a §20 tego pliku zawierał znaki sterujące CR/VT z wcześniejszej edycji
   (`elease/2.0` zamiast `release/2.0`, `2.1.0` zamiast `v2.1.0`).
+- **Poprawka logowania (przed publikacją):** `TokenStore.save` zamienia błąd zapisu w `AuthError`
+  z podpowiedzią `TOKEN_STORE_PATH` (wcześniej surowy `PermissionError` przerywał stronę),
+  `DeviceFlowAuth.poll_once` odpytuje o token raz na fragment zamiast blokować stronę w `poll`
+  do wygaśnięcia kodu, a wynik logowania trafia do `_flash_message`. README §4–§5 opisują,
+  co zrobić, gdy proces nie może pisać poza katalogiem projektu.
 - **Historia:** tag `v2.2.0`; `main` i `release/2.0` wskazują ten sam commit.

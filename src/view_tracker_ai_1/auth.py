@@ -139,12 +139,18 @@ class TokenStore:
     def save(self, tokens: Tokens) -> None:
         """Zapisz tokeny atomowo (plik tymczasowy + `os.replace`)."""
         directory = self._path.parent
-        directory.mkdir(parents=True, exist_ok=True)
-        _restrict_permissions(directory, DIRECTORY_MODE)
-
-        descriptor, temporary_name = tempfile.mkstemp(
-            prefix=".tokens-", suffix=".tmp", dir=directory
-        )
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            _restrict_permissions(directory, DIRECTORY_MODE)
+            descriptor, temporary_name = tempfile.mkstemp(
+                prefix=".tokens-", suffix=".tmp", dir=directory
+            )
+        except OSError as exc:
+            raise AuthError(
+                f"Nie mogę zapisać tokenów w {directory} ({exc.strerror or exc}). "
+                "Katalog tokenów musi być zapisywalny: ustaw TOKEN_STORE_PATH na ścieżkę "
+                "w katalogu projektu albo uruchom aplikację w zwykłym terminalu."
+            ) from exc
         temporary_path = Path(temporary_name)
         try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
@@ -229,33 +235,46 @@ class DeviceFlowAuth:
         interval = authorization.interval
 
         while True:
-            response = self._post_token(
-                {
-                    "grant_type": GRANT_TYPE_DEVICE,
-                    "device_code": authorization.device_code,
-                }
-            )
-            if response.status_code == 200:
-                tokens = self._tokens_from_payload(self._json(response, context="token"))
-                self._store.save(tokens)
+            tokens, error, status = self._single_poll(authorization)
+            if tokens is not None:
                 return tokens
-
-            error = self._error_code(response)
-            if error == ERROR_PENDING:
-                pass
-            elif error == ERROR_SLOW_DOWN:
+            if error == ERROR_SLOW_DOWN:
                 interval += SLOW_DOWN_STEP
-            elif error == ERROR_ACCESS_DENIED:
-                raise AuthError("Odmówiono dostępu do konta — spróbuj ponownie: `auth login`.")
-            else:
-                raise AuthError(
-                    f"Autoryzacja nie powiodła się ({error or response.status_code}) — "
-                    "zacznij od nowa: `auth login`."
-                )
+            elif error != ERROR_PENDING:
+                raise _poll_error(error, status)
 
             if self._now() + timedelta(seconds=interval) > deadline:
                 raise AuthError("Kod autoryzacji wygasł — zacznij od nowa: `auth login`.")
             self._sleep(interval)
+
+    def poll_once(self, authorization: DeviceAuthorization) -> Tokens | None:
+        """Jedno odpytanie o token; `None`, gdy użytkownik jeszcze nie zatwierdził kodu.
+
+        Wersja dla UI: fragment odpytuje co własny interwał, więc nie blokujemy go
+        pętlą `poll()` (inaczej strona wisiałaby do wygaśnięcia kodu, a „Anuluj”
+        byłby martwy). Błędy końcowe nadal rzucają `AuthError`.
+        """
+        tokens, error, status = self._single_poll(authorization)
+        if tokens is not None:
+            return tokens
+        if error in (ERROR_PENDING, ERROR_SLOW_DOWN):
+            return None
+        raise _poll_error(error, status)
+
+    def _single_poll(
+        self, authorization: DeviceAuthorization
+    ) -> tuple[Tokens | None, str | None, int]:
+        response = self._post_token(
+            {
+                "grant_type": GRANT_TYPE_DEVICE,
+                "device_code": authorization.device_code,
+            }
+        )
+        if response.status_code == 200:
+            tokens = self._tokens_from_payload(self._json(response, context="token"))
+            self._store.save(tokens)
+            return tokens, None, response.status_code
+        return None, self._error_code(response), response.status_code
 
     def login(
         self,
@@ -384,6 +403,15 @@ class DeviceFlowAuth:
 
 
 # --- pomocnicze ------------------------------------------------------------
+def _poll_error(error: str | None, status: int) -> AuthError:
+    """Błąd końcowy pollingu device flow (wspólny dla `poll` i `poll_once`)."""
+    if error == ERROR_ACCESS_DENIED:
+        return AuthError("Odmówiono dostępu do konta — spróbuj ponownie: `auth login`.")
+    return AuthError(
+        f"Autoryzacja nie powiodła się ({error or status}) — zacznij od nowa: `auth login`."
+    )
+
+
 def _restrict_permissions(path: Path, mode: int) -> None:
     """Ustaw prawa pliku/katalogu; na Windows `chmod` bywa ograniczony — nie blokujemy."""
     with contextlib.suppress(OSError):

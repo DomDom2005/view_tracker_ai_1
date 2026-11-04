@@ -73,8 +73,8 @@ Skopiuj `.env.example` do `.env` (poza repo — plik jest w `.gitignore`) i uzup
 |---|---|---|
 | `ALLEGRO_CLIENT_ID` / `ALLEGRO_CLIENT_SECRET` | klucze aplikacji sandbox | tak (API) |
 | `ALLEGRO_ENV` | `sandbox` albo `prod` | nie (dom. `sandbox`) |
-| `ALLEGRO_USER_AGENT` | obowiązkowy nagłówek UA | nie (jest domyślny: `view_tracker_ai_1/2.0.1 (+https://github.com/DomDom2005/view_tracker_ai_1)`) |
-| `TOKEN_STORE_PATH` | plik z tokenami | nie (dom. `~/.config/view_tracker_ai_1/tokens.json`) |
+| `ALLEGRO_USER_AGENT` | obowiązkowy nagłówek UA | nie (jest domyślny: `view_tracker_ai_1/2.2.0 (+https://github.com/DomDom2005/view_tracker_ai_1)`) |
+| `TOKEN_STORE_PATH` | plik z tokenami | nie (dom. `~/.config/view_tracker_ai_1/tokens.json`; gdy katalog domowy nie jest zapisywalny — patrz §5 — wskaż ścieżkę w projekcie) |
 | `DB_PATH` | baza SQLite | nie (dom. `data/sandbox.db`) |
 | `ALLOW_PROD_WRITES` | zapisy do API na produkcji | nie (dom. zablokowane) |
 | `LOG_LEVEL` | `DEBUG`/`INFO`/`WARNING`/`ERROR` | nie (dom. `INFO`) |
@@ -92,6 +92,13 @@ python run.py --server.port 8600
 ```
 
 Na Windows można też **dwuklikiem** uruchomić `start.bat` (woła `run.py` i zostawia okno przy błędzie).
+
+**Ograniczone uprawnienia / sandbox.** Tokeny trafiają domyślnie do `~/.config/view_tracker_ai_1/`,
+czyli poza katalog projektu. Jeśli proces nie może pisać poza tym katalogiem (np. uruchomienie
+w sandboxie narzędzia agenta), logowanie kończy się komunikatem „Nie mogę zapisać tokenów…”.
+Wtedy uruchom aplikację w zwykłym terminalu (dwuklik `start.bat`) albo wskaż zapisywalną ścieżkę
+w `.env`: `TOKEN_STORE_PATH=data/tokens.json` (wzorzec `tokens*.json` jest w `.gitignore`).
+Baza (`DB_PATH`) i tak leży w projekcie, więc reszta aplikacji działa bez zmian.
 
 Równoważne wywołania bez launchera:
 

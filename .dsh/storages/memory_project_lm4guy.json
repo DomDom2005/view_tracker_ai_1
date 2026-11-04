@@ -1,0 +1,35 @@
+{
+  "unit": {
+    "name": "memory_project_lm4guy",
+    "version": 1
+  },
+  "global": null,
+  "tables": {
+    "blocks": {
+      "2b787cec-9302-4102-936a-efc4e99d77a8": {
+        "namespace": "project",
+        "status": "approved",
+        "injected": false,
+        "source": "agent",
+        "content": "view_tracker_ai_1 — procedura wydania (ustalona przy 2.1.0 i 2.2.0): 1) podbić numer w czterech miejscach: `pyproject.toml`, `src/view_tracker_ai_1/__init__.py`, UA w `.env.example` i UA w `docs/api-notes.md` (§Nagłówki); 2) zaktualizować blok wersji w `README.md` i dopisać nowy numerowany rozdział w `Project info/SPEC-2.0.md` (tabela commitów od poprzedniego tagu); 3) wpis w `docs/ai-journal.md` (tabela + ewentualne „Notatki z wydania”); 4) bramka `ruff check .` + `pytest -q` + smoke `run.py --server.port 86xx` i `/_stcore/health`; 5) commit `chore(release): X.Y.Z` (po angielsku, treść z listą zmian), tag **annotowany** `vX.Y.Z` z polskim opisem; 6) `main` i `release/2.0` muszą stać na tym samym commicie — commit na `release/2.0`, potem `git checkout main && git merge --ff-only release/2.0`; 7) bez `git push` bez wyraźnej zgody człowieka (puszowane bywa dopiero po decyzji). Wersja widoczna w UI idzie z `__version__`, nie z metadanych — po podbiciu warto odświeżyć editable (`pip install -e . --no-deps --no-build-isolation`), bo `pip show` inaczej kłamie. Źródło: 2.1.0 z 2026-11-02 i 2.2.0 z 2026-11-04 w tym repo.",
+        "keywords": [
+          "release",
+          "wydanie",
+          "wersjonowanie",
+          "tag",
+          "v2.2.0",
+          "v2.1.0",
+          "chore(release)",
+          "release/2.0",
+          "main",
+          "procedura wydania",
+          "bump version",
+          "pip show",
+          "editable"
+        ],
+        "createdAt": 1793828735526,
+        "updatedAt": 1793828735526
+      }
+    }
+  }
+}

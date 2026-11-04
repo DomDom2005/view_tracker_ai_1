@@ -307,11 +307,7 @@ def test_login_section_starts_device_flow(
         return FakeAuth(), authorization
 
     monkeypatch.setattr(services, "begin_login", fake_begin)
-    monkeypatch.setattr(
-        services,
-        "complete_login",
-        lambda auth, authorization: (_ for _ in ()).throw(AuthError("pending")),
-    )
+    monkeypatch.setattr(services, "complete_login", lambda auth, authorization: None)
     at = run_page(
         "from view_tracker_ai_1.ui.pages import data\n"
         "data.render()\n"
@@ -322,6 +318,42 @@ def test_login_section_starts_device_flow(
 
     assert not at.exception
     assert any("ABC-777" in info.value for info in at.info)
+
+
+def test_login_error_is_shown_instead_of_waiting(
+    isolated_environment: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Błąd zapisu tokenów (np. brak prawa zapisu) ma być widoczny, a nie udawać „czekam”."""
+    from view_tracker_ai_1 import services
+    from view_tracker_ai_1.auth import DeviceAuthorization
+
+    def fake_begin(config):  # noqa: ANN001, ANN202 - stub
+        authorization = DeviceAuthorization(
+            device_code="device",
+            user_code="ABC-888",
+            verification_uri="https://allegro.pl/skojarz-aplikacje",
+            expires_in=600,
+            interval=5,
+        )
+        return object(), authorization
+
+    monkeypatch.setattr(services, "begin_login", fake_begin)
+    monkeypatch.setattr(
+        services,
+        "complete_login",
+        lambda auth, authorization: (_ for _ in ()).throw(
+            AuthError("Nie mogę zapisać tokenów w katalogu tokenów")
+        ),
+    )
+    at = run_page(
+        "from view_tracker_ai_1.ui.pages import data\n"
+        "data.render()\n"
+    )
+    [button for button in at.button if button.label == "Rozpocznij logowanie"][0].click()
+    at.run()
+
+    assert not at.exception
+    assert any("Nie mogę zapisać tokenów" in error.value for error in at.error)
 
 
 def test_refresh_button_reports_result(

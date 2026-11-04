@@ -12,7 +12,7 @@ from view_tracker_ai_1.text import format_datetime, format_number
 from view_tracker_ai_1.ui import components, state
 from view_tracker_ai_1.ui import runtime as runtime_module
 
-REFRESH_MESSAGE_KEY = "refresh-message"
+FLASH_MESSAGE_KEY = "flash-message"
 LOGIN_POLL_SECONDS = 5
 
 
@@ -128,19 +128,21 @@ def _login_section(config) -> None:  # noqa: ANN001 - Config bez importu w podpi
 @st.fragment(run_every=LOGIN_POLL_SECONDS)
 def _poll_login(auth, authorization) -> None:  # noqa: ANN001 - obiekty auth.py
     try:
-        services.complete_login(auth, authorization)
-    except AuthError:
+        tokens = services.complete_login(auth, authorization)
+    except AppError as exc:
+        # Komunikat przez `_flash_message` (nie `st.error` w fragmentcie), żeby przetrwał
+        # pełny przebieg strony — fragment znika razem z kluczem `auth-pending`.
+        st.session_state.pop("auth-pending", None)
+        st.session_state[FLASH_MESSAGE_KEY] = ("error", f"Błąd logowania: {exc}")
+        st.rerun(scope="app")
+    if tokens is None:
         st.caption(
             f"Czekam na zatwierdzenie — sprawdzam co {LOGIN_POLL_SECONDS} s. "
             "Możesz też anulować i spróbować ponownie."
         )
-    except AppError as exc:
-        st.error(f"Błąd logowania: {exc}")
-        st.session_state.pop("auth-pending", None)
-        return
     else:
         st.session_state.pop("auth-pending", None)
-        st.success("Zalogowano — token zapisany.")
+        st.session_state[FLASH_MESSAGE_KEY] = ("success", "Zalogowano — token zapisany.")
         st.rerun(scope="app")
     if st.button("Anuluj logowanie", key="cancel-login"):
         st.session_state.pop("auth-pending", None)
@@ -151,14 +153,14 @@ def _refresh(conn, config) -> None:  # noqa: ANN001 - sqlite3.Connection w warst
     try:
         result = services.refresh_once(config, conn)
     except AuthError as exc:
-        st.session_state[REFRESH_MESSAGE_KEY] = (
+        st.session_state[FLASH_MESSAGE_KEY] = (
             "error",
             f"Autoryzacja: {exc} Zaloguj się ponownie.",
         )
     except AppError as exc:
-        st.session_state[REFRESH_MESSAGE_KEY] = ("error", f"Błąd zbierania: {exc}")
+        st.session_state[FLASH_MESSAGE_KEY] = ("error", f"Błąd zbierania: {exc}")
     else:
-        st.session_state[REFRESH_MESSAGE_KEY] = (
+        st.session_state[FLASH_MESSAGE_KEY] = (
             "success",
             f"Zapisano {format_number(result.inserted)} nowych snapshotów "
             f"dla {format_number(result.offers)} ofert.",
@@ -167,7 +169,7 @@ def _refresh(conn, config) -> None:  # noqa: ANN001 - sqlite3.Connection w warst
 
 
 def _flash_message() -> None:
-    message = st.session_state.pop(REFRESH_MESSAGE_KEY, None)
+    message = st.session_state.pop(FLASH_MESSAGE_KEY, None)
     if not message:
         return
     kind, text = message

@@ -708,8 +708,9 @@ def begin_login(config: Config) -> tuple[DeviceFlowAuth, DeviceAuthorization]:
     return auth, auth.start()
 
 
-def complete_login(auth: DeviceFlowAuth, authorization: DeviceAuthorization) -> Tokens:
-    return auth.poll(authorization)
+def complete_login(auth: DeviceFlowAuth, authorization: DeviceAuthorization) -> Tokens | None:
+    """Jedna próba pollingu; `None`, gdy użytkownik nie zatwierdził jeszcze kodu."""
+    return auth.poll_once(authorization)
 
 
 def data_version(conn: sqlite3.Connection) -> tuple[str | None, int]:

@@ -241,6 +241,42 @@ def test_poll_stops_when_code_expires(tmp_path: Path) -> None:
     assert len(responses.calls) == 3
 
 
+@responses.activate
+def test_poll_once_returns_none_while_pending(tmp_path: Path) -> None:
+    responses.add(responses.POST, TOKEN_URL, json={"error": "authorization_pending"}, status=400)
+
+    auth, _clock, sleeps = make_auth(tmp_path)
+
+    assert auth.poll_once(device_authorization()) is None
+    assert sleeps == []  # UI odpytuje własnym rytmem, więc jedno wywołanie nie czeka
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_poll_once_saves_and_returns_tokens(tmp_path: Path) -> None:
+    responses.add(responses.POST, TOKEN_URL, json=TOKEN_PAYLOAD, status=200)
+
+    auth, _clock, sleeps = make_auth(tmp_path)
+    tokens = auth.poll_once(device_authorization())
+
+    assert tokens is not None
+    assert tokens.access_token == "access-1"
+    assert sleeps == []
+    stored = auth.store.load()
+    assert stored is not None
+    assert stored.access_token == "access-1"
+
+
+@responses.activate
+def test_poll_once_access_denied_raises(tmp_path: Path) -> None:
+    responses.add(responses.POST, TOKEN_URL, json={"error": "access_denied"}, status=400)
+
+    auth, _clock, _sleeps = make_auth(tmp_path)
+    with pytest.raises(AuthError, match="Odmówiono"):
+        auth.poll_once(device_authorization())
+    assert auth.store.load() is None
+
+
 # --- odświeżanie -------------------------------------------------------------
 @responses.activate
 def test_refresh_rotates_and_saves_new_token(tmp_path: Path) -> None:
@@ -395,6 +431,25 @@ def test_corrupted_token_file_raises(tmp_path: Path) -> None:
 
     with pytest.raises(AuthError, match="uszkodzony"):
         store.load()
+
+
+def test_store_save_wraps_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Brak prawa zapisu w katalogu tokenów ma dać `AuthError` z podpowiedzią, nie surowy błąd."""
+    store = TokenStore(tmp_path / "tokens.json")
+    tokens = Tokens(
+        access_token="access-1",
+        refresh_token="refresh-1",
+        expires_at=NOW + timedelta(hours=1),
+    )
+
+    def failing_mkstemp(*args: object, **kwargs: object) -> tuple[int, str]:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(auth_module.tempfile, "mkstemp", failing_mkstemp)
+
+    with pytest.raises(AuthError, match="TOKEN_STORE_PATH"):
+        store.save(tokens)
+    assert not store.path.exists()
 
 
 def test_token_file_is_readable_json(tmp_path: Path) -> None:
