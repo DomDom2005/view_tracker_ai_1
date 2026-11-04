@@ -147,7 +147,7 @@ class TokenStore:
             )
         except OSError as exc:
             raise AuthError(
-                f"Nie mogę zapisać tokenów w {directory} ({exc.strerror or exc}). "
+                f"Nie mogę zapisać tokenów w `{directory}` ({exc.strerror or exc}). "
                 "Katalog tokenów musi być zapisywalny: ustaw TOKEN_STORE_PATH na ścieżkę "
                 "w katalogu projektu albo uruchom aplikację w zwykłym terminalu."
             ) from exc
