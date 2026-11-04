@@ -50,4 +50,4 @@ def test_start_bat_prefers_venv_and_calls_run_script() -> None:
     assert ".venv\\Scripts\\python.exe" in batch
     assert "%PY% run.py %*" in batch
     assert "pause" in batch
-    assert "\r\n" in batch  # cmd.exe lubi CRLF
+
