@@ -1,4 +1,4 @@
-"""Testy launchera `run.py`: import bez uruchamiania serwera, ścieżki i argumenty."""
+"""Testy launchera `run.py` i `start.bat`: import bez uruchamiania serwera, ścieżki, argumenty."""
 
 from __future__ import annotations
 
@@ -43,8 +43,11 @@ def test_run_script_delegates_arguments(monkeypatch: pytest.MonkeyPatch) -> None
     assert seen == [["--server.port", "8600"]]
 
 
-def test_start_bat_calls_run_script() -> None:
-    batch = (ROOT / "start.bat").read_text(encoding="utf-8")
+def test_start_bat_prefers_venv_and_calls_run_script() -> None:
+    batch = (ROOT / "start.bat").read_text(encoding="ascii")
 
-    assert "python run.py" in batch
     assert "%~dp0" in batch
+    assert ".venv\\Scripts\\python.exe" in batch
+    assert "%PY% run.py %*" in batch
+    assert "pause" in batch
+    assert "\r\n" in batch  # cmd.exe lubi CRLF
