@@ -37,7 +37,7 @@
 
 - aplikacja Streamlit uruchamiana lokalnie (localhost), UI po polsku,
 - logowanie Allegro (device flow) i status tokena **w aplikacji**,
-- wybór środowiska/bazy (sandbox / prod / demo) z widocznym oznaczeniem,
+- wybór środowiska/bazy (sandbox / demo) z widocznym oznaczeniem,
 - lista ofert: wyszukiwanie, filtr statusu, wybór jednej lub wielu ofert,
 - zakres czasu: `24h`, `7d`, `30d`, `90d`, `all` + zakres własny (od–do),
 - metryka: wyświetlenia, obserwujący, obie,
@@ -163,7 +163,7 @@ view_tracker_ai_1/
 
 **FR-3 Status tokena.** Belka: „Token ważny do DD.MM.YYYY HH:MM”, „Token wygasł — zaloguj się ponownie”, „Brak logowania”. Nigdy nie pokazuje wartości tokenu.
 
-**FR-4 Środowisko i baza.** Selektor: sandbox / prod / demo. Dla `prod` aplikacja jest **tylko do odczytu** (przycisk „Odśwież” i tryb ciągły zablokowane, wyraźny badge). Ścieżka bazy widoczna w Ustawieniach.
+**FR-4 Środowisko i baza.** Selektor: sandbox / demo. Baza produkcyjna została **usunięta 2026-11-25** — była pusta (`data/prod.db` wypełnia się tylko z API produkcji, a to jest zablokowane) i tylko odczyt, więc wprowadzała w błąd; stare linki `db=prod` spadają do sandboxa. Dla `demo` zbieranie jest zablokowane (dane syntetyczne). Ścieżka bazy widoczna w Ustawieniach.
 
 **FR-5 Odświeżanie.** Przycisk „Odśwież” woła `collector.run_once` w jednej transakcji, pokazuje wynik (liczba ofert, nowych snapshotów, czas) i zapisuje wpis w `collect_runs`. `AuthError` → komunikat z akcją „Zaloguj ponownie”; `ApiError`/`RateLimitError` → komunikat z powodem, bez utraty ekranu.
 
@@ -349,7 +349,7 @@ Zasady: żadnych testów opartych na obrazkach; figury Plotly porównujemy jako 
 - Sekrety tylko w `.env` poza repo; `.env.example` bez wartości.
 - Tokeny: plik `~/.config/view_tracker_ai_1/tokens.json`, katalog 700 / plik 600, zapis atomowy (istnieje w `auth.py`).
 - UI nie wyświetla tokenów, nie zapisuje ich w `st.session_state`, nie wstawia do URL ani logów; `config.redact()` obowiązuje w logach.
-- Produkcja: tylko odczyt; przycisk odświeżania i tryb ciągły zablokowane, badge PROD.
+- Baza demo: tylko odczyt; przycisk odświeżania i tryb ciągły zablokowane, badge DEMO. Baza produkcyjna usunięta z UI (2026-11-25).
 - Zrzuty ekranu **nie są wymagane** (decyzja właściciela projektu, 2026-11-02); jeśli ktoś je robi, obowiązuje zasada: bez tokenów, identyfikatorów konta i danych kupujących.
 
 ---

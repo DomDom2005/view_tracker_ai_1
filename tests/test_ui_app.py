@@ -136,13 +136,12 @@ def test_app_renders_metrics_when_database_has_data(isolated_environment: Path) 
     assert len(at.dataframe) == 1
 
 
-def test_database_selector_offers_three_databases() -> None:
+def test_database_selector_offers_sandbox_and_demo() -> None:
     at = run_app()
     selector = at.selectbox[0]
     assert selector.value == "sandbox"
     assert selector.options == [
         "Sandbox (API)",
-        "Produkcja (tylko odczyt)",
         "Dane demo (syntetyczne)",
     ]
 
@@ -382,15 +381,15 @@ def test_refresh_button_reports_result(
     assert any("Zapisano 5" in success.value for success in at.success)
 
 
-def test_data_page_blocks_collection_on_prod() -> None:
+def test_data_page_marks_demo_database_as_read_only() -> None:
     at = run_page(
         "from view_tracker_ai_1.ui.pages import data\n"
         "data.render()\n",
-        db="prod",
+        db="demo",
     )
 
     assert not at.exception
-    assert any("do odczytu" in error.value for error in at.error)
+    assert any("syntetyczne" in info.value for info in at.info)
 
 
 def test_comparison_page_needs_two_offers() -> None:

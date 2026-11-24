@@ -27,10 +27,6 @@ def render() -> None:
     st.write(f"Environment: **{config.env}**")
     st.write(f"API: `{config.api_base_url}`")
     st.write(f"Autoryzacja: `{config.auth_base_url}`")
-    if current.database == "prod":
-        st.error(
-            "Baza produkcyjna jest tylko do odczytu: zbieranie i tryb ciągły będą zablokowane."
-        )
 
     st.subheader("Tokeny i logi")
     st.write(f"Plik tokenów: `{config.token_store_path}`")
@@ -50,7 +46,7 @@ def render() -> None:
         "Pięć ofert z wzorcami: wzrost, spadek, plateau, anomalia licznika i luki w danych. "
         "Wszystko z `source='synthetic'`; generator odmawia dopisania do bazy z danymi z API."
     )
-    if st.button("Wygeneruj dane demo (90 dni)", disabled=current.database == "prod"):
+    if st.button("Wygeneruj dane demo (90 dni)"):
         demo_config = config.with_overrides(db_path=demo_path)
         try:
             demo_conn = services.open_database(demo_config)

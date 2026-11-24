@@ -7,7 +7,7 @@ więc każdy widok da się zalinkować.
 
 | Parametr | Wartości | Znaczenie |
 |---|---|---|
-| `db` | `sandbox` \| `prod` \| `demo` | wybrana baza (prod = tylko odczyt) |
+| `db` | `sandbox` \| `demo` | wybrana baza (`demo` = dane syntetyczne, zbieranie zablokowane; `prod` usunięty 2026-11-25 — stare linki spadają do `sandbox`) |
 | `offer` | ID ofert rozdzielone przecinkami | wybór na stronie Oferty; 2–5 ofert na Porównaniu |
 | `range` | `24h` \| `7d` \| `30d` \| `90d` \| `all` \| `custom` | zakres czasu |
 | `from` / `to` | `YYYY-MM-DD` | granice dla `range=custom` |

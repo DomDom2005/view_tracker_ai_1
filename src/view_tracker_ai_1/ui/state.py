@@ -17,10 +17,9 @@ import streamlit as st
 from view_tracker_ai_1.config import Config, default_db_path
 from view_tracker_ai_1.services import RANGE_KEYS
 
-DATABASE_NAMES: tuple[str, ...] = ("sandbox", "prod", "demo")
+DATABASE_NAMES: tuple[str, ...] = ("sandbox", "demo")
 DATABASE_LABELS: Mapping[str, str] = {
     "sandbox": "Sandbox (API)",
-    "prod": "Produkcja (tylko odczyt)",
     "demo": "Dane demo (syntetyczne)",
 }
 
@@ -123,18 +122,13 @@ def resolve_db_path(database: str) -> Path:
     """Ścieżka bazy dla wybranej pozycji w UI (`demo` ma własny plik)."""
     if database == "demo":
         return DEMO_DB_PATH
-    return default_db_path("prod" if database == "prod" else "sandbox")
-
-
-def database_env(database: str) -> str:
-    """Środowisko API odpowiadające bazie (demo korzysta z konfiguracji sandboxa)."""
-    return "prod" if database == "prod" else "sandbox"
+    return default_db_path("sandbox")
 
 
 def config_for(state: UiState) -> Config:
-    """Konfiguracja aplikacji dla wybranej bazy (env + ścieżka nadpisane jawnie)."""
+    """Konfiguracja aplikacji dla wybranej bazy (środowisko sandbox i ścieżka jawnie)."""
     return Config.from_env().with_overrides(
-        env=database_env(state.database),
+        env="sandbox",
         db_path=resolve_db_path(state.database),
     )
 

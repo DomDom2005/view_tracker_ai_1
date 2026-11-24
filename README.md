@@ -115,9 +115,12 @@ UI_PORT=8600 python -m view_tracker_ai_1.ui   # port z env (Linux/macOS)
 $env:UI_PORT=8600; python -m view_tracker_ai_1.ui   # PowerShell
 ```
 
-Panel boczny wybiera **bazę**: `Sandbox (API)`, `Produkcja (tylko odczyt)` albo
-`Dane demo (syntetyczne)`. Wybór trafia do adresu widoku (parametr `db`), więc linki da się
-przesłać. Adresy widoków: `/przeglad`, `/oferta`, `/porownanie`, `/dane`, `/ustawienia`.
+Panel boczny wybiera **bazę**: `Sandbox (API)` albo `Dane demo (syntetyczne)`.
+Bazy produkcyjnej nie ma w aplikacji (usunięta, bo `data/prod.db` i tak był pusty —
+API Allegro nie udostępnia historii liczników, a zapisy na produkcji są zablokowane
+w konfiguracji). Wybór trafia do adresu widoku (parametr `db`), więc linki da się
+przesłać; stare linki z `db=prod` otwierają sandbox. Adresy widoków: `/przeglad`,
+`/oferta`, `/porownanie`, `/dane`, `/ustawienia`.
 
 ## 6. Pierwsze kroki
 

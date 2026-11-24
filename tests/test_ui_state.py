@@ -56,11 +56,15 @@ def test_offers_are_trimmed_and_empty_entries_dropped() -> None:
 
 def test_params_for_roundtrip() -> None:
     original = state.UiState(
-        database="prod", offers=("1", "2"), range_key="90d", metric="watchers"
+        database="demo", offers=("1", "2"), range_key="90d", metric="watchers"
     )
     params = state.params_for(original)
-    assert params == {"db": "prod", "offer": "1,2", "range": "90d", "metric": "watchers"}
+    assert params == {"db": "demo", "offer": "1,2", "range": "90d", "metric": "watchers"}
     assert state.parse_params(params) == original
+
+
+def test_removed_prod_database_falls_back_to_sandbox() -> None:
+    assert state.parse_params({"db": "prod"}).database == "sandbox"
 
 
 def test_params_for_omits_empty_offers() -> None:
@@ -99,21 +103,14 @@ def test_default_filters_are_omitted_from_url() -> None:
 # --- bazy -------------------------------------------------------------------
 def test_resolve_database_paths() -> None:
     assert state.resolve_db_path("sandbox") == default_db_path("sandbox")
-    assert state.resolve_db_path("prod") == default_db_path("prod")
     assert state.resolve_db_path("demo") == Path("data") / "demo.db"
+    assert state.resolve_db_path("prod") == default_db_path("sandbox")  # pozycja usunięta
 
 
-def test_environment_for_database() -> None:
-    assert state.database_env("sandbox") == "sandbox"
-    assert state.database_env("demo") == "sandbox"
-    assert state.database_env("prod") == "prod"
-
-
-def test_config_for_database_overrides_env_and_path(tmp_path: Path) -> None:
-    config = state.config_for(state.UiState(database="prod"))
-    assert config.env == "prod"
-    assert config.effective_db_path == default_db_path("prod")
-    assert config.api_base_url == "https://api.allegro.pl"
+def test_config_for_database_overrides_env_and_path() -> None:
+    sandbox = state.config_for(state.UiState(database="sandbox"))
+    assert sandbox.env == "sandbox"
+    assert sandbox.effective_db_path == default_db_path("sandbox")
 
     demo = state.config_for(state.UiState(database="demo"))
     assert demo.env == "sandbox"

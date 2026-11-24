@@ -19,7 +19,7 @@ LOGIN_POLL_SECONDS = 5
 def render() -> None:
     current = state.current_state()
     config = state.config_for(current)
-    read_only = current.database in ("prod", "demo")
+    read_only = current.database == "demo"
     components.page_header(
         "Dane i kolektor",
         f"Baza: {config.effective_db_path} · środowisko API: {config.env}",
@@ -47,9 +47,7 @@ def render() -> None:
 
         st.divider()
         st.subheader("Odświeżanie jednorazowe")
-        if current.database == "prod":
-            st.error("Baza produkcyjna jest tylko do odczytu — zbieranie jest zablokowane.")
-        elif current.database == "demo":
+        if current.database == "demo":
             st.info(
                 "Baza demo zawiera dane syntetyczne — zbieranie z API jest zablokowane, "
                 "żeby nie mieszać źródeł. Przełącz bazę na Sandbox, żeby zbierać."

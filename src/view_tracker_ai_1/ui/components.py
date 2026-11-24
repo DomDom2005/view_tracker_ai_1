@@ -23,7 +23,7 @@ from view_tracker_ai_1.ui.state import (
     with_database,
 )
 
-ENV_LABELS = {"sandbox": "SANDBOX", "prod": "PROD", "demo": "DEMO"}
+ENV_LABELS = {"sandbox": "SANDBOX", "demo": "DEMO"}
 
 
 def database_selector(state: UiState) -> UiState:
@@ -84,9 +84,7 @@ def sidebar(state: UiState, config: Config) -> None:
         st.caption(f"panel ofert · v{__version__}")
         database_selector(state)
         label = ENV_LABELS[state.database]
-        if state.database == "prod":
-            st.error(f"{label} — tylko odczyt")
-        elif state.database == "demo":
+        if state.database == "demo":
             st.info(f"{label} — dane syntetyczne")
         else:
             st.info(f"{label}")
