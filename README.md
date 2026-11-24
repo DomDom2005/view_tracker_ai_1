@@ -82,6 +82,12 @@ Skopiuj `.env.example` do `.env` (poza repo — plik jest w `.gitignore`) i uzup
 Bez `.env` aplikacja **uruchomi się** (tryb demo i podgląd bazy), ale logowanie do API
 i zbieranie danych nie będą działać.
 
+**Wdrożenie na Streamlit Community Cloud.** Cloud nie dostaje `.env` (jest w `.gitignore`),
+więc klucze wpisz w *Settings → Secrets* panelu (format TOML; wzór: `.streamlit/secrets.toml`).
+Aplikacja sięga po `st.secrets` jako uzupełnienie: zmienne środowiskowe i `.env` mają
+pierwszeństwo, sekrety wypełniają braki — dlatego logowanie działa i lokalnie, i na Cloud.
+Main file path w ustawieniach deployu: `streamlit_app.py`.
+
 ## 5. Uruchomienie
 
 Najprościej — launcher w katalogu repo (nie wymaga `pip install -e .`):

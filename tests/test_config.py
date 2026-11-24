@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import io
 import logging
+import os
+import sys
 from pathlib import Path
 
 import pytest
 
 from view_tracker_ai_1 import __version__
+from view_tracker_ai_1 import config as config_module
 from view_tracker_ai_1.config import (
     API_BASE_URLS,
     AUTH_BASE_URLS,
@@ -174,3 +177,74 @@ def test_from_env_uses_process_environment(monkeypatch: pytest.MonkeyPatch) -> N
     config = Config.from_env(load_env_file=False)
     assert config.env == "prod"
     assert config.allow_prod_writes is True
+
+
+# --- sekrety Streamlita (Cloud) ---------------------------------------------
+def test_from_env_falls_back_to_streamlit_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        config_module,
+        "_streamlit_secrets",
+        lambda: {
+            "ALLEGRO_CLIENT_ID": "z-sekretow",
+            "ALLEGRO_CLIENT_SECRET": "sekret",
+            "TOKEN_STORE_PATH": "data/tokens.json",
+        },
+    )
+    for name in ("ALLEGRO_CLIENT_ID", "ALLEGRO_CLIENT_SECRET", "TOKEN_STORE_PATH"):
+        monkeypatch.delenv(name, raising=False)
+
+    config = Config.from_env(load_env_file=False)
+
+    assert config.client_id == "z-sekretow"
+    assert config.client_secret == "sekret"
+    assert config.token_store_path == Path("data/tokens.json")
+
+
+def test_process_environment_wins_over_streamlit_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        config_module, "_streamlit_secrets", lambda: {"ALLEGRO_CLIENT_ID": "z-sekretow"}
+    )
+    monkeypatch.setenv("ALLEGRO_CLIENT_ID", "z-env")
+
+    assert Config.from_env(load_env_file=False).client_id == "z-env"
+
+
+def test_streamlit_secrets_are_silent_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    class NoSecrets:
+        @property
+        def secrets(self) -> dict[str, str]:
+            raise RuntimeError("No secrets found.")
+
+    monkeypatch.setitem(sys.modules, "streamlit", NoSecrets())
+
+    assert config_module._streamlit_secrets() == {}
+
+
+def test_streamlit_secrets_keep_scalars_and_skip_tables(monkeypatch: pytest.MonkeyPatch) -> None:
+    class ScalarsAndTables:
+        secrets = {"ALLEGRO_ENV": "prod", "ALLOW_PROD_WRITES": 1, "auth": {"x": "y"}}
+
+    monkeypatch.setitem(sys.modules, "streamlit", ScalarsAndTables())
+
+    assert config_module._streamlit_secrets() == {
+        "ALLEGRO_ENV": "prod",
+        "ALLOW_PROD_WRITES": "1",
+    }
+
+
+def test_streamlit_secrets_do_not_leak_into_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Promoting:
+        """Streamlit przy parsowaniu sekretów nadpisuje `os.environ` — to cofamy."""
+
+        @property
+        def secrets(self) -> dict[str, str]:
+            os.environ["LEAK_PROBE"] = "1"
+            os.environ["ALLEGRO_ENV"] = "prod"
+            return {"LEAK_PROBE": "1", "ALLEGRO_ENV": "prod"}
+
+    monkeypatch.setitem(sys.modules, "streamlit", Promoting())
+    monkeypatch.setenv("ALLEGRO_ENV", "sandbox")
+
+    assert config_module._streamlit_secrets() == {"LEAK_PROBE": "1", "ALLEGRO_ENV": "prod"}
+    assert "LEAK_PROBE" not in os.environ
+    assert os.environ["ALLEGRO_ENV"] == "sandbox"

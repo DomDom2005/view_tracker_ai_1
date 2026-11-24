@@ -54,6 +54,46 @@ def default_db_path(env: str) -> Path:
     return Path("data") / f"{env}.db"
 
 
+def _streamlit_secrets() -> Mapping[str, str]:
+    """Klucze z `st.secrets` (Streamlit Community Cloud) jako źródło zapasowe.
+
+    Streamlit parsuje sekrety leniwie — dopóki aplikacja nie sięgnie po `st.secrets`,
+    klucze z panelu Cloud nie trafiają do `os.environ`. Bez tego uzupełnienia
+    wdrożona aplikacja nie widzi `ALLEGRO_CLIENT_ID` / `ALLEGRO_CLIENT_SECRET`.
+
+    Parsowanie ma efekt uboczny: Streamlit promuje klucze najwyższego poziomu do
+    `os.environ` i nadpisuje nimi zmienne środowiskowe. Cofamy tę promocję, bo
+    kolejność źródeł ustalamy sami (środowisko i `.env` wygrywają z sekretami).
+    """
+
+    try:
+        import streamlit
+    except ImportError:  # pragma: no cover - Streamlit jest zależnością wymaganą
+        return {}
+    snapshot = dict(os.environ)
+    try:
+        raw = dict(streamlit.secrets)
+    except Exception:  # noqa: BLE001 - brak pliku albo błąd TOML nie może wywrócić startu
+        return {}
+    finally:
+        _restore_environment(snapshot)
+    return {
+        str(key): str(value)
+        for key, value in raw.items()
+        if isinstance(value, (str, int, float))
+    }
+
+
+def _restore_environment(snapshot: Mapping[str, str]) -> None:
+    """Przywróć `os.environ` do stanu sprzed parsowania sekretów Streamlita."""
+    for key in list(os.environ):
+        if key not in snapshot:
+            del os.environ[key]
+    for key, value in snapshot.items():
+        if os.environ.get(key) != value:
+            os.environ[key] = value
+
+
 @dataclass(frozen=True, slots=True)
 class Config:
     """Konfiguracja aplikacji. Tworzona jawnie; brak stanu globalnego."""
@@ -90,7 +130,8 @@ class Config:
         if not self.client_id or not self.client_secret:
             raise ConfigError(
                 "Brak ALLEGRO_CLIENT_ID / ALLEGRO_CLIENT_SECRET. Uzupełnij `.env` "
-                "(wzór w `.env.example`) i ponów."
+                "(wzór w `.env.example`), a w Streamlit Community Cloud wpisz je w "
+                "Settings → Secrets, i ponów."
             )
         return self.client_id, self.client_secret
 
@@ -119,7 +160,9 @@ class Config:
         if environ is None:
             if load_env_file:
                 load_dotenv(dotenv_path=dotenv_path, override=False)
-            source: Mapping[str, str] = os.environ
+            # Kolejność: prawdziwe env (w tym `.env`) wygrywa, sekrety Streamlita
+            # uzupełniają braki — na Cloud `.env` nie istnieje, więc działa panel Secrets.
+            source: Mapping[str, str] = {**_streamlit_secrets(), **os.environ}
         else:
             source = environ
 

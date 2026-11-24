@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# sekrety Streamlit (format TOML; ten sam plik wkleja się w Cloud → Secrets)
+.streamlit/secrets.toml
 tokens.json
 tokens*.json
 *.pem
