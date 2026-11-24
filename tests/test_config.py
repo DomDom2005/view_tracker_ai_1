@@ -216,6 +216,7 @@ def test_streamlit_secrets_are_silent_when_missing(monkeypatch: pytest.MonkeyPat
             raise RuntimeError("No secrets found.")
 
     monkeypatch.setitem(sys.modules, "streamlit", NoSecrets())
+    monkeypatch.setattr(config_module, "_secrets_file_values", lambda: {})
 
     assert config_module._streamlit_secrets() == {}
 
@@ -248,3 +249,53 @@ def test_streamlit_secrets_do_not_leak_into_environment(monkeypatch: pytest.Monk
     assert config_module._streamlit_secrets() == {"LEAK_PROBE": "1", "ALLEGRO_ENV": "prod"}
     assert "LEAK_PROBE" not in os.environ
     assert os.environ["ALLEGRO_ENV"] == "sandbox"
+
+
+def test_streamlit_secret_names_are_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
+    class LowerCase:
+        secrets = {"allegro_client_id": " z-duzych ", "Allegro_Env": "prod", "nested": {"a": 1}}
+
+    monkeypatch.setitem(sys.modules, "streamlit", LowerCase())
+
+    assert config_module._streamlit_secrets() == {
+        "ALLEGRO_CLIENT_ID": "z-duzych",
+        "ALLEGRO_ENV": "prod",
+    }
+
+
+def test_streamlit_secrets_fall_back_to_the_local_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    class NoSecrets:
+        @property
+        def secrets(self) -> dict[str, str]:
+            raise RuntimeError("No secrets found.")
+
+    monkeypatch.setitem(sys.modules, "streamlit", NoSecrets())
+    monkeypatch.setattr(
+        config_module, "_secrets_file_values", lambda: {"allegro_env": "prod", "auth": {"x": "y"}}
+    )
+
+    assert config_module._streamlit_secrets() == {"ALLEGRO_ENV": "prod"}
+
+
+def test_secrets_status_lists_key_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Stub:
+        secrets = {"ALLEGRO_CLIENT_ID": "x", "ALLEGRO_CLIENT_SECRET": "y"}
+
+    monkeypatch.setitem(sys.modules, "streamlit", Stub())
+
+    status = config_module.secrets_status()
+
+    assert "ALLEGRO_CLIENT_ID" in status
+    assert "x" not in status  # diagnostyka nie może zdradzać wartości
+
+
+def test_secrets_status_reports_unavailable_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    class NoSecrets:
+        @property
+        def secrets(self) -> dict[str, str]:
+            raise RuntimeError("No secrets found.")
+
+    monkeypatch.setitem(sys.modules, "streamlit", NoSecrets())
+    monkeypatch.setattr(config_module, "_secrets_file_values", lambda: {})
+
+    assert "niedostępne" in config_module.secrets_status()

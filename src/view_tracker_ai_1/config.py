@@ -55,33 +55,77 @@ def default_db_path(env: str) -> Path:
 
 
 def _streamlit_secrets() -> Mapping[str, str]:
-    """Klucze z `st.secrets` (Streamlit Community Cloud) jako źródło zapasowe.
+    """Sekrety Streamlita (Streamlit Community Cloud) jako źródło zapasowe.
 
-    Streamlit parsuje sekrety leniwie — dopóki aplikacja nie sięgnie po `st.secrets`,
-    klucze z panelu Cloud nie trafiają do `os.environ`. Bez tego uzupełnienia
-    wdrożona aplikacja nie widzi `ALLEGRO_CLIENT_ID` / `ALLEGRO_CLIENT_SECRET`.
+    Kolejność: `st.secrets` (panel *Settings → Secrets*), a gdy nic nie zwróci —
+    plik `.streamlit/secrets.toml` z katalogu roboczego. Streamlit parsuje sekrety
+    leniwie, więc dopóki aplikacja po nie nie sięgnie, nie ma ich w `os.environ`.
 
     Parsowanie ma efekt uboczny: Streamlit promuje klucze najwyższego poziomu do
     `os.environ` i nadpisuje nimi zmienne środowiskowe. Cofamy tę promocję, bo
     kolejność źródeł ustalamy sami (środowisko i `.env` wygrywają z sekretami).
+
+    Nazwy kluczy są normalizowane (wielkie litery, bez spacji), bo `Config` czyta
+    je dokładnie tak jak zmienne środowiskowe — inaczej literówka w panelu
+    (`allegro_client_id`) wygląda jak brak sekretów.
     """
 
+    values: dict[str, str] = {}
+    snapshot = dict(os.environ)
     try:
         import streamlit
     except ImportError:  # pragma: no cover - Streamlit jest zależnością wymaganą
-        return {}
-    snapshot = dict(os.environ)
-    try:
-        raw = dict(streamlit.secrets)
-    except Exception:  # noqa: BLE001 - brak pliku albo błąd TOML nie może wywrócić startu
-        return {}
-    finally:
-        _restore_environment(snapshot)
+        streamlit = None
+    if streamlit is not None:
+        try:
+            values.update(_secret_scalars(dict(streamlit.secrets)))
+        except Exception:  # noqa: BLE001 - brak sekretów nie może wywrócić startu
+            pass
+        finally:
+            _restore_environment(snapshot)
+    if not values:
+        values.update(_secret_scalars(_secrets_file_values()))
+    return values
+
+
+def _secret_scalars(raw: Mapping[str, object]) -> dict[str, str]:
+    """Skalary z sekretów: klucze znormalizowane, wartości jako przycięty tekst."""
     return {
-        str(key): str(value)
+        str(key).strip().upper(): str(value).strip()
         for key, value in raw.items()
         if isinstance(value, (str, int, float))
     }
+
+
+def _secrets_file_values() -> Mapping[str, object]:
+    """Zawartość `.streamlit/secrets.toml` (zapas, gdy `st.secrets` nic nie zwraca)."""
+    try:
+        import tomllib
+
+        path = Path(".streamlit/secrets.toml")
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 - brak pliku to nie błąd
+        return {}
+
+
+def secrets_status() -> str:
+    """Diagnostyka sekretów (tylko nazwy kluczy, bez wartości) do komunikatu o braku kluczy."""
+    try:
+        import streamlit
+    except ImportError:  # pragma: no cover - Streamlit jest zależnością wymaganą
+        return "brak pakietu streamlit"
+    snapshot = dict(os.environ)
+    try:
+        raw = dict(streamlit.secrets)
+    except Exception as exc:  # noqa: BLE001 - diagnostyka nie może wywrócić UI
+        reason = f"{type(exc).__name__}: {exc}".replace("\n", " ")[:160]
+        file_keys = sorted(_secret_scalars(_secrets_file_values()))
+        found = ", ".join(file_keys) if file_keys else "brak kluczy w pliku"
+        return f"st.secrets niedostępne ({reason}); .streamlit/secrets.toml → {found}"
+    finally:
+        _restore_environment(snapshot)
+    keys = sorted(_secret_scalars(raw))
+    return f"st.secrets → {', '.join(keys)}" if keys else "st.secrets → brak kluczy"
 
 
 def _restore_environment(snapshot: Mapping[str, str]) -> None:
@@ -131,7 +175,8 @@ class Config:
             raise ConfigError(
                 "Brak ALLEGRO_CLIENT_ID / ALLEGRO_CLIENT_SECRET. Uzupełnij `.env` "
                 "(wzór w `.env.example`), a w Streamlit Community Cloud wpisz je w "
-                "Settings → Secrets, i ponów."
+                "Settings → Secrets, i ponów. "
+                f"Diagnostyka: {secrets_status()}."
             )
         return self.client_id, self.client_secret
 
